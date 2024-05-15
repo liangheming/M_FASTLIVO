@@ -4,6 +4,7 @@
 #include "ikd_Tree.h"
 #include "imu_processor.h"
 #include <pcl/filters/voxel_grid.h>
+#include <pcl/common/transforms.h>
 
 namespace livo
 {
@@ -13,7 +14,6 @@ namespace livo
         MAP_INIT,
         MAPPING
     };
-    
 
     struct LocalMap
     {
@@ -29,9 +29,15 @@ namespace livo
 
         void updateLidarLossFunc(kf::State &state, kf::SharedState &share_data);
 
+        void process(SyncPackage &package);
+
         void trimMap();
- 
+
         void incrMap();
+
+        CloudType::Ptr lidar2World(CloudType::Ptr inp);
+
+        CloudType::Ptr lidar2Body(CloudType::Ptr inp);
 
     private:
         Config m_config;
@@ -40,7 +46,7 @@ namespace livo
         std::shared_ptr<kf::IESKF> m_kf;
         std::shared_ptr<KD_TREE<PointType>> m_ikdtree;
         std::shared_ptr<IMUProcessor> m_imu_processor;
-        
+
         CloudType::Ptr m_cloud_lidar;
         CloudType::Ptr m_cloud_down_lidar;
         CloudType::Ptr m_cloud_down_world;

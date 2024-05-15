@@ -21,8 +21,9 @@ namespace livo
         {
             m_scan_filter.setLeafSize(m_config.scan_resolution, m_config.scan_resolution, m_config.scan_resolution);
         }
+        m_status = Status::IMU_INIT;
     }
-    
+
     void MapBuilder::incrMap()
     {
         if (m_cloud_down_lidar->empty())
@@ -141,6 +142,57 @@ namespace livo
         if (m_local_map.cub_to_rm.size() > 0)
             m_ikdtree->Delete_Point_Boxes(m_local_map.cub_to_rm);
         return;
+    }
+
+    CloudType::Ptr MapBuilder::lidar2World(CloudType::Ptr inp)
+    {
+        Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
+        transform.block<3, 3>(0, 0) = (m_kf->x().rot * m_kf->x().rot_ext).cast<float>();
+        transform.block<3, 1>(0, 3) = (m_kf->x().rot * m_kf->x().pos_ext + m_kf->x().pos).cast<float>();
+        CloudType::Ptr ret(new CloudType);
+        pcl::transformPointCloud(*inp, *ret, transform);
+        return ret;
+    }
+
+    CloudType::Ptr MapBuilder::lidar2Body(CloudType::Ptr inp)
+    {
+        Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
+        transform.block<3, 3>(0, 0) = m_kf->x().rot_ext.cast<float>();
+        transform.block<3, 1>(0, 3) = m_kf->x().pos_ext.cast<float>();
+        CloudType::Ptr ret(new CloudType);
+        pcl::transformPointCloud(*inp, *ret, transform);
+        return ret;
+    }
+
+    void MapBuilder::process(SyncPackage &package)
+    {
+        if (m_status == Status::IMU_INIT)
+        {
+            if (m_imu_processor->initialize(package))
+                m_status = Status::MAP_INIT;
+        }
+        else if (m_status == Status::MAP_INIT)
+        {
+            m_imu_processor->undistort(package);
+            m_ikdtree->Build(lidar2World(package.cloud)->points);
+            m_status = Status::MAPPING;
+        }
+        else
+        {
+            m_imu_processor->undistort(package);
+            if (m_config.scan_resolution > 0.0)
+            {
+                m_scan_filter.setInputCloud(package.cloud);
+                m_scan_filter.filter(*m_cloud_down_lidar);
+            }
+            else
+            {
+                pcl::copyPointCloud(*package.cloud, *m_cloud_down_lidar);
+            }
+            trimMap();
+            m_kf->update();
+            incrMap();
+        }
     }
 
     void MapBuilder::updateLidarLossFunc(kf::State &state, kf::SharedState &share_data)

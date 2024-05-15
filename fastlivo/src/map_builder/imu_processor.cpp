@@ -13,12 +13,11 @@ namespace livo
         m_last_gyro.setZero();
         m_imu_cache.clear();
         m_imu_poses_cache.clear();
-        is_initialized = false;
     }
 
-    bool IMUProcessor::initialize(std::vector<IMUData> &imus)
+    bool IMUProcessor::initialize(SyncPackage& package)
     {
-        m_imu_cache.insert(m_imu_cache.end(), imus.begin(), imus.end());
+        m_imu_cache.insert(m_imu_cache.end(), package.imus.begin(), package.imus.end());
         if (m_imu_cache.size() < m_config.imu_init_num)
             return false;
         Eigen::Vector3d acc_mean = Eigen::Vector3d::Zero();
@@ -48,6 +47,7 @@ namespace livo
         m_kf->P().block<3, 3>(18, 18) = Eigen::Matrix3d::Identity() * 0.0001;
         m_kf->P().block<2, 2>(21, 21) = Eigen::Matrix2d::Identity() * 0.00001;
         m_last_imu = m_imu_cache.back();
+        m_last_end_time = package.cloud_end_time;
         return true;
     }
 
@@ -129,13 +129,5 @@ namespace livo
                     break;
             }
         }
-    }
-
-    void IMUProcessor::process(SyncPackage &sync)
-    {
-        if (!is_initialized)
-            is_initialized = initialize(sync.imus);
-        if (is_initialized)
-            undistort(sync);
     }
 } // namespace livo
