@@ -19,7 +19,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   sensor_msgs
   tf2_ros
-  livox_ros_driver2
+  livox_ros_driver
 )
 
 find_package(OpenMP QUIET)

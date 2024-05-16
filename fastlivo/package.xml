@@ -20,7 +20,7 @@
   <exec_depend>std_msgs</exec_depend>
 
   <depend>sensor_msgs</depend>
-  <depend>livox_ros_driver2</depend>
+  <depend>livox_ros_driver</depend>
   <depend>tf2_ros</depend>
 
 

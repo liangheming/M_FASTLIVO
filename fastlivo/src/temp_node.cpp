@@ -65,7 +65,8 @@ public:
                                              timestamp);
     }
 
-    void lidarCB(const livox_ros_driver2::CustomMsg::ConstPtr msg)
+    // void lidarCB(const livox_ros_driver2::CustomMsg::ConstPtr msg)
+    void lidarCB(const livox_ros_driver::CustomMsg::ConstPtr msg)
     {
         livo::CloudType::Ptr cloud(new livo::CloudType);
         livox2pcl(msg, cloud, 3, 0.5);

@@ -1,6 +1,33 @@
 #include "utils.h"
 
-void livox2pcl(const livox_ros_driver2::CustomMsg::ConstPtr &msg, pcl::PointCloud<pcl::PointXYZINormal>::Ptr out, int filter_num, double blind)
+// void livox2pcl(const livox_ros_driver2::CustomMsg::ConstPtr &msg, pcl::PointCloud<pcl::PointXYZINormal>::Ptr out, int filter_num, double blind)
+// {
+//     int point_num = msg->point_num;
+//     out->clear();
+//     out->reserve(point_num / filter_num + 1);
+
+//     uint valid_num = 0;
+//     for (uint i = 0; i < point_num; i++)
+//     {
+//         if ((msg->points[i].line < 4) && ((msg->points[i].tag & 0x30) == 0x10 || (msg->points[i].tag & 0x30) == 0x00))
+//         {
+//             if ((valid_num++) % filter_num != 0)
+//                 continue;
+//             pcl::PointXYZINormal p;
+//             p.x = msg->points[i].x;
+//             p.y = msg->points[i].y;
+//             p.z = msg->points[i].z;
+//             p.intensity = msg->points[i].reflectivity;
+//             p.curvature = msg->points[i].offset_time / float(1000000); // 纳秒->毫秒
+//             if ((p.x * p.x + p.y * p.y + p.z * p.z > (blind * blind)))
+//             {
+//                 out->push_back(p);
+//             }
+//         }
+//     }
+// }
+
+void livox2pcl(const livox_ros_driver::CustomMsg::ConstPtr &msg, pcl::PointCloud<pcl::PointXYZINormal>::Ptr out, int filter_num, double blind)
 {
     int point_num = msg->point_num;
     out->clear();
@@ -9,7 +36,7 @@ void livox2pcl(const livox_ros_driver2::CustomMsg::ConstPtr &msg, pcl::PointClou
     uint valid_num = 0;
     for (uint i = 0; i < point_num; i++)
     {
-        if ((msg->points[i].line < 4) && ((msg->points[i].tag & 0x30) == 0x10 || (msg->points[i].tag & 0x30) == 0x00))
+        if ((msg->points[i].line <= 6) && ((msg->points[i].tag & 0x30) == 0x10 || (msg->points[i].tag & 0x30) == 0x00))
         {
             if ((valid_num++) % filter_num != 0)
                 continue;
