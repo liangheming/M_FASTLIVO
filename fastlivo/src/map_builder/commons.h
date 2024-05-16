@@ -1,6 +1,8 @@
 #include <Eigen/Eigen>
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
+#include <opencv2/core.hpp>
+
 namespace livo
 {
     typedef pcl::PointXYZINormal PointType;
@@ -12,7 +14,7 @@ namespace livo
 
     struct Config
     {
-        double scan_resolution = 0.25;
+        double scan_resolution = 0.1;
         double map_resolution = 0.25;
 
         double cube_len = 300;
@@ -57,12 +59,14 @@ namespace livo
         Pose(double t, Eigen::Vector3d a, Eigen::Vector3d g, Eigen::Vector3d v, Eigen::Vector3d p, Eigen::Matrix3d r) : offset(t), acc(a), gyro(g), vel(v), pos(p), rot(r) {}
     };
 
-
     struct SyncPackage
     {
         std::vector<IMUData> imus;
         CloudType::Ptr cloud;
+        cv::Mat image;
+        double image_time = 0.0;
         double cloud_start_time = 0.0;
         double cloud_end_time = 0.0;
+        bool lidar_end = false;
     };
 } // namespace livo

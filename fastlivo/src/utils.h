@@ -1,6 +1,9 @@
 #pragma once
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
+#include <opencv2/core.hpp>
+#include <cv_bridge/cv_bridge.h>
+
 #include <sensor_msgs/PointCloud2.h>
 // #include <livox_ros_driver2/CustomMsg.h>
 #include <livox_ros_driver/CustomMsg.h>
@@ -11,6 +14,7 @@
 
 
 // void livox2pcl(const livox_ros_driver2::CustomMsg::ConstPtr &msg, pcl::PointCloud<pcl::PointXYZINormal>::Ptr out, int filter_num, double blind);
+cv::Mat msg2cv(const sensor_msgs::ImageConstPtr &img_msg);
 
 void livox2pcl(const livox_ros_driver::CustomMsg::ConstPtr &msg, pcl::PointCloud<pcl::PointXYZINormal>::Ptr out, int filter_num, double blind);
 

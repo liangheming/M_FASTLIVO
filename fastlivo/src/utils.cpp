@@ -54,6 +54,11 @@ void livox2pcl(const livox_ros_driver::CustomMsg::ConstPtr &msg, pcl::PointCloud
     }
 }
 
+cv::Mat msg2cv(const sensor_msgs::ImageConstPtr &img_msg)
+{
+    return cv_bridge::toCvCopy(img_msg, "bgr8")->image;
+}
+
 sensor_msgs::PointCloud2 pcl2msg(pcl::PointCloud<pcl::PointXYZINormal>::Ptr inp, const std::string &frame_id, const double &timestamp)
 {
     sensor_msgs::PointCloud2 msg;
@@ -76,7 +81,7 @@ geometry_msgs::TransformStamped eigen2Transform(const Eigen::Matrix3d &rot, cons
     transform.transform.translation.y = pos(1);
     transform.transform.translation.z = pos(2);
     Eigen::Quaterniond q = Eigen::Quaterniond(rot);
-   
+
     transform.transform.rotation.w = q.w();
     transform.transform.rotation.x = q.x();
     transform.transform.rotation.y = q.y();

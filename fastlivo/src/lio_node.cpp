@@ -15,7 +15,7 @@ struct Config
 };
 struct DataGroup
 {
-    bool lidar_pushed;
+    bool lidar_pushed = false;
     std::mutex imu_mutex;
     std::mutex lidar_mutex;
     double last_imu_time;
@@ -88,6 +88,8 @@ public:
         if (!m_group_data.lidar_pushed)
         {
             m_sync_pack.cloud = m_group_data.lidar_buffer.front().second;
+            std::sort(m_sync_pack.cloud->points.begin(), m_sync_pack.cloud->points.end(), [](livo::PointType &p1, livo::PointType &p2)
+                      { return p1.curvature < p2.curvature; });
             m_sync_pack.cloud_start_time = m_group_data.lidar_buffer.front().first;
             m_sync_pack.cloud_end_time = m_sync_pack.cloud_start_time + m_sync_pack.cloud->points.back().curvature / double(1000.0);
             m_group_data.lidar_pushed = true;

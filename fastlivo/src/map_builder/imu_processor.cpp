@@ -63,8 +63,6 @@ namespace livo
         const double cloud_time_begin = package.cloud_start_time;
         const double cloud_time_end = package.cloud_end_time;
 
-        std::sort(package.cloud->points.begin(), package.cloud->points.end(), [](PointType &p1, PointType &p2)
-                  { return p1.curvature < p2.curvature; });
         m_imu_poses_cache.clear();
         m_imu_poses_cache.emplace_back(0.0, m_last_acc, m_last_gyro, m_kf->x().vel, m_kf->x().pos, m_kf->x().rot);
         Eigen::Vector3d acc_val, gyro_val;

@@ -1,3 +1,4 @@
 <launch>
-    <node pkg="fastlivo" type="temp_node" name="temp_node" output="screen"></node>
+    <node pkg="image_transport" type="republish" name="republish" args="compressed in:=/left_camera/image raw out:=/left_camera/image" output="screen" respawn="true"/>
+    <node pkg="fastlivo" type="lvio_node" name="lvio_node" output="screen"></node>
 </launch>
