@@ -15,7 +15,7 @@ namespace livo
         m_imu_poses_cache.clear();
     }
 
-    bool IMUProcessor::initialize(SyncPackage& package)
+    bool IMUProcessor::initialize(SyncPackage &package)
     {
         m_imu_cache.insert(m_imu_cache.end(), package.imus.begin(), package.imus.end());
         if (m_imu_cache.size() < m_config.imu_init_num)
@@ -53,6 +53,7 @@ namespace livo
 
     void IMUProcessor::undistort(SyncPackage &package)
     {
+
         m_imu_cache.clear();
         m_imu_cache.push_back(m_last_imu);
         m_imu_cache.insert(m_imu_cache.end(), package.imus.begin(), package.imus.end());
@@ -70,6 +71,7 @@ namespace livo
 
         double dt = 0.0;
         kf::Input inp;
+
         for (auto it_imu = m_imu_cache.begin(); it_imu < (m_imu_cache.end() - 1); it_imu++)
         {
             IMUData &head = *it_imu;
@@ -93,6 +95,7 @@ namespace livo
             double offset = tail.timestamp - cloud_time_begin;
             m_imu_poses_cache.emplace_back(offset, m_last_acc, m_last_gyro, m_kf->x().vel, m_kf->x().pos, m_kf->x().rot);
         }
+
         dt = cloud_time_end - imu_time_end;
         m_kf->predict(inp, dt, m_Q);
         m_last_imu = m_imu_cache.back();
@@ -104,6 +107,7 @@ namespace livo
         Eigen::Matrix3d cur_rot_ext = m_kf->x().rot_ext;
         Eigen::Vector3d cur_pos_ext = m_kf->x().pos_ext;
         auto it_pcl = package.cloud->points.end() - 1;
+
         for (auto it_kp = m_imu_poses_cache.end() - 1; it_kp != m_imu_poses_cache.begin(); it_kp--)
         {
             auto head = it_kp - 1;

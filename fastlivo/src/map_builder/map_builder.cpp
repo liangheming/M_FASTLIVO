@@ -17,6 +17,10 @@ namespace livo
         m_nearest_points.resize(10000);
         m_point_selected_flag.resize(10000, false);
 
+        m_kf->set_share_function(
+            [&](kf::State &s, kf::SharedState &d)
+            { updateLidarLossFunc(s, d); });
+
         if (m_config.scan_resolution > 0.0)
         {
             m_scan_filter.setLeafSize(m_config.scan_resolution, m_config.scan_resolution, m_config.scan_resolution);

@@ -1,0 +1,3 @@
+<launch>
+    <node pkg="fastlivo" type="temp_node" name="temp_node" output="screen"></node>
+</launch>

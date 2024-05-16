@@ -1,5 +1,5 @@
 #pragma once
-#include <Eigen/Core>
+#include <Eigen/Eigen>
 #include <sophus/so3.hpp>
 namespace kf
 {

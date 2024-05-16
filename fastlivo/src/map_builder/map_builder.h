@@ -39,6 +39,10 @@ namespace livo
 
         CloudType::Ptr lidar2Body(CloudType::Ptr inp);
 
+        Status &status() { return m_status; }
+        
+        const kf::State &state() { return m_kf->x(); }
+
     private:
         Config m_config;
         Status m_status;
