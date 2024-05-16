@@ -38,3 +38,21 @@ sensor_msgs::PointCloud2 pcl2msg(pcl::PointCloud<pcl::PointXYZINormal>::Ptr inp,
     msg.header.frame_id = frame_id;
     return msg;
 }
+
+geometry_msgs::TransformStamped eigen2Transform(const Eigen::Matrix3d &rot, const Eigen::Vector3d &pos, const std::string &frame_id, const std::string &child_frame_id, const double &timestamp)
+{
+    geometry_msgs::TransformStamped transform;
+    transform.header.frame_id = frame_id;
+    transform.header.stamp = ros::Time().fromSec(timestamp);
+    transform.child_frame_id = child_frame_id;
+    transform.transform.translation.x = pos(0);
+    transform.transform.translation.y = pos(1);
+    transform.transform.translation.z = pos(2);
+    Eigen::Quaterniond q = Eigen::Quaterniond(rot);
+   
+    transform.transform.rotation.w = q.w();
+    transform.transform.rotation.x = q.x();
+    transform.transform.rotation.y = q.y();
+    transform.transform.rotation.z = q.z();
+    return transform;
+}

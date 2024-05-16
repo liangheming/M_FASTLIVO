@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <queue>
 #include <sensor_msgs/Imu.h>
+#include <tf2_ros/transform_broadcaster.h>
 
 #include "utils.h"
 #include "map_builder/map_builder.h"
@@ -9,6 +10,8 @@ struct Config
 {
     std::string imu_topic = "/livox/imu";
     std::string lidar_topic = "/livox/lidar";
+    std::string map_frame = "lidar";
+    std::string body_frame = "body";
 };
 struct DataGroup
 {
@@ -106,7 +109,7 @@ public:
         return true;
     }
 
-    void publishCloud(ros::Publisher &cloud_pub, livo::CloudType::Ptr cloud, std::string frame_id, double &sec)
+    void publishCloud(ros::Publisher &cloud_pub, livo::CloudType::Ptr cloud, std::string &frame_id, double &sec)
     {
         if (cloud_pub.getNumSubscribers() < 1)
             return;
@@ -121,8 +124,9 @@ public:
 
         if (m_builder->status() != livo::Status::MAPPING)
             return;
-        publishCloud(m_body_cloud_pub, m_builder->lidar2Body(m_sync_pack.cloud), "body", m_sync_pack.cloud_end_time);
-        publishCloud(m_world_cloud_pub, m_builder->lidar2World(m_sync_pack.cloud), "lidar", m_sync_pack.cloud_end_time);
+        m_br.sendTransform(eigen2Transform(m_builder->state().rot, m_builder->state().pos, m_node_config.map_frame, m_node_config.body_frame, m_sync_pack.cloud_end_time));
+        publishCloud(m_body_cloud_pub, m_builder->lidar2Body(m_sync_pack.cloud), m_node_config.body_frame, m_sync_pack.cloud_end_time);
+        publishCloud(m_world_cloud_pub, m_builder->lidar2World(m_sync_pack.cloud), m_node_config.map_frame, m_sync_pack.cloud_end_time);
     }
 
 private:
@@ -139,6 +143,7 @@ private:
     livo::Config m_builder_config;
     livo::SyncPackage m_sync_pack;
     std::shared_ptr<livo::MapBuilder> m_builder;
+    tf2_ros::TransformBroadcaster m_br;
 };
 
 int main(int argc, char **argv)

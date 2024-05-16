@@ -21,6 +21,7 @@
 
   <depend>sensor_msgs</depend>
   <depend>livox_ros_driver2</depend>
+  <depend>tf2_ros</depend>
 
 
   <export>
