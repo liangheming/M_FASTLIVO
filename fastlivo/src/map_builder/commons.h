@@ -30,6 +30,8 @@ namespace livo
         bool gravity_align = true;
         Eigen::Matrix3d r_il = Eigen::Matrix3d::Identity();
         Eigen::Vector3d p_il = Eigen::Vector3d::Zero();
+        Eigen::Matrix3d r_cl = Eigen::Matrix3d::Identity();
+        Eigen::Vector3d p_cl = Eigen::Vector3d::Zero();
 
         bool esti_li = false;
         bool esti_ci = false;

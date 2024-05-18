@@ -8,8 +8,12 @@ namespace kf
     using Vector12d = Eigen::Matrix<double, 12, 1>;
     using Matrix21d = Eigen::Matrix<double, 21, 21>;
     using Matrix12d = Eigen::Matrix<double, 12, 12>;
+    using Matrix18d = Eigen::Matrix<double, 18, 18>;
+    using Vector18d = Eigen::Matrix<double, 18, 1>;
     using Matrix21x12d = Eigen::Matrix<double, 21, 12>;
     using Matrix23x12d = Eigen::Matrix<double, 23, 12>;
+
+    using Matrix29x12d = Eigen::Matrix<double, 29, 12>;
 
     using Matrix23d = Eigen::Matrix<double, 23, 23>;
     using Vector23d = Eigen::Matrix<double, 23, 1>;
@@ -17,14 +21,18 @@ namespace kf
     using Matrix3x2d = Eigen::Matrix<double, 3, 2>;
     using Matrix2x3d = Eigen::Matrix<double, 2, 3>;
 
+    using Matrix29d = Eigen::Matrix<double, 29, 29>;
+    using Vector29d = Eigen::Matrix<double, 29, 1>;
+    using Vector30d = Eigen::Matrix<double, 30, 1>;
+
     Eigen::Matrix3d rightJacobian(const Eigen::Vector3d &inp);
 
     struct SharedState
     {
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-        Matrix12d H;
-        Vector12d b;
+        Matrix18d H;
+        Vector18d b;
         size_t iter_num = 0;
     };
 
@@ -34,8 +42,10 @@ namespace kf
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
         Eigen::Vector3d pos = Eigen::Vector3d::Zero();
         Eigen::Matrix3d rot = Eigen::Matrix3d::Identity();
-        Eigen::Matrix3d rot_ext = Eigen::Matrix3d::Identity();
-        Eigen::Vector3d pos_ext = Eigen::Vector3d::Zero();
+        Eigen::Matrix3d r_il = Eigen::Matrix3d::Identity();
+        Eigen::Vector3d p_il = Eigen::Vector3d::Zero();
+        Eigen::Matrix3d r_cl = Eigen::Matrix3d::Identity();
+        Eigen::Vector3d p_cl = Eigen::Vector3d::Zero();
         Eigen::Vector3d vel = Eigen::Vector3d::Zero();
         Eigen::Vector3d bg = Eigen::Vector3d::Zero();
         Eigen::Vector3d ba = Eigen::Vector3d::Zero();
@@ -46,11 +56,17 @@ namespace kf
             g = gravity_dir.normalized() * GRAVITY;
         }
 
-        void operator+=(const Vector23d &delta);
+        // void operator+=(const Vector23d &delta);
 
-        void operator+=(const Vector24d &delta);
+        // void operator+=(const Vector24d &delta);
 
-        Vector23d operator-(const State &other);
+        void operator+=(const Vector29d &delta);
+
+        void operator+=(const Vector30d &delta);
+
+        // Vector23d operator-(const State &other);
+
+        Vector29d operator-(const State &other);
 
         Matrix3x2d getBx() const;
 
@@ -81,16 +97,16 @@ namespace kf
         IESKF(size_t max_iter) : max_iter_(max_iter) {}
 
         void setMaxIter(int max_iter) { max_iter_ = max_iter; }
-        
+
         State &x() { return x_; }
 
         void change_x(State &x) { x_ = x; }
 
-        Matrix23d &P() { return P_; }
+        Matrix29d &P() { return P_; }
 
         void set_share_function(measure_func func) { func_ = func; }
 
-        void change_P(Matrix23d &P) { P_ = P; }
+        void change_P(Matrix29d &P) { P_ = P; }
 
         void predict(const Input &inp, double dt, const Matrix12d &Q);
 
@@ -100,11 +116,11 @@ namespace kf
         size_t max_iter_ = 5;
         double eps_ = 0.001;
         State x_;
-        Matrix23d P_;
+        Matrix29d P_;
         measure_func func_;
-        Matrix23d H_;
-        Vector23d b_;
-        Matrix23d F_;
-        Matrix23x12d G_;
+        Matrix29d H_;
+        Vector29d b_;
+        Matrix29d F_;
+        Matrix29x12d G_;
     };
 } // namespace kf

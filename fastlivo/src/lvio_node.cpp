@@ -194,20 +194,20 @@ public:
         if (!syncPackage())
             return;
 
-        // double start_imu_time = 0.0, end_imu_time = 0.0;
-        // if (m_sync_pack.imus.size() > 0)
-        // {
-        //     start_imu_time = m_sync_pack.imus.front().timestamp;
-        //     end_imu_time = m_sync_pack.imus.back().timestamp;
-        // }
-        // ROS_WARN("package type: %d, lidar begin: %.4f, imu begin:%.4f, image off: %.4f, imu end: %.4f, lidar end: %4f, imu_size: %lu",
-        //          m_sync_pack.lidar_end,
-        //          m_sync_pack.cloud_start_time,
-        //          start_imu_time,
-        //          m_sync_pack.image_time,
-        //          end_imu_time,
-        //          m_sync_pack.cloud_end_time,
-        //          m_sync_pack.imus.size());
+        double start_imu_time = 0.0, end_imu_time = 0.0;
+        if (m_sync_pack.imus.size() > 0)
+        {
+            start_imu_time = m_sync_pack.imus.front().timestamp;
+            end_imu_time = m_sync_pack.imus.back().timestamp;
+        }
+        ROS_WARN("package type: %d, lidar begin: %.4f, imu begin:%.4f, image off: %.4f, imu end: %.4f, lidar end: %4f, imu_size: %lu",
+                 m_sync_pack.lidar_end,
+                 m_sync_pack.cloud_start_time,
+                 start_imu_time,
+                 m_sync_pack.image_time,
+                 end_imu_time,
+                 m_sync_pack.cloud_end_time,
+                 m_sync_pack.imus.size());
     }
 
 private:

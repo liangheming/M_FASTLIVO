@@ -40,7 +40,7 @@ namespace livo
         {
             const PointType &p = m_cloud_down_lidar->points[i];
             Eigen::Vector3d point(p.x, p.y, p.z);
-            point = state.rot * (state.rot_ext * point + state.pos_ext) + state.pos;
+            point = state.rot * (state.r_il * point + state.p_il) + state.pos;
             m_cloud_down_world->points[i].x = point(0);
             m_cloud_down_world->points[i].y = point(1);
             m_cloud_down_world->points[i].z = point(2);
@@ -90,7 +90,7 @@ namespace livo
     {
         m_local_map.cub_to_rm.clear();
         const kf::State &state = m_kf->x();
-        Eigen::Vector3d pos_lidar = state.pos + state.rot * state.pos_ext;
+        Eigen::Vector3d pos_lidar = state.pos + state.rot * state.p_il;
 
         if (!m_local_map.is_initialed)
         {
@@ -151,8 +151,8 @@ namespace livo
     CloudType::Ptr MapBuilder::lidar2World(CloudType::Ptr inp)
     {
         Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
-        transform.block<3, 3>(0, 0) = (m_kf->x().rot * m_kf->x().rot_ext).cast<float>();
-        transform.block<3, 1>(0, 3) = (m_kf->x().rot * m_kf->x().pos_ext + m_kf->x().pos).cast<float>();
+        transform.block<3, 3>(0, 0) = (m_kf->x().rot * m_kf->x().r_il).cast<float>();
+        transform.block<3, 1>(0, 3) = (m_kf->x().rot * m_kf->x().p_il + m_kf->x().pos).cast<float>();
         CloudType::Ptr ret(new CloudType);
         pcl::transformPointCloud(*inp, *ret, transform);
         return ret;
@@ -161,8 +161,8 @@ namespace livo
     CloudType::Ptr MapBuilder::lidar2Body(CloudType::Ptr inp)
     {
         Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
-        transform.block<3, 3>(0, 0) = m_kf->x().rot_ext.cast<float>();
-        transform.block<3, 1>(0, 3) = m_kf->x().pos_ext.cast<float>();
+        transform.block<3, 3>(0, 0) = m_kf->x().r_il.cast<float>();
+        transform.block<3, 1>(0, 3) = m_kf->x().p_il.cast<float>();
         CloudType::Ptr ret(new CloudType);
         pcl::transformPointCloud(*inp, *ret, transform);
         return ret;
@@ -207,7 +207,7 @@ namespace livo
             PointType &point_body = m_cloud_down_lidar->points[i];
             PointType &point_world = m_cloud_down_world->points[i];
             Eigen::Vector3d point_body_vec(point_body.x, point_body.y, point_body.z);
-            Eigen::Vector3d point_world_vec = state.rot * (state.rot_ext * point_body_vec + state.pos_ext) + state.pos;
+            Eigen::Vector3d point_world_vec = state.rot * (state.r_il * point_body_vec + state.p_il) + state.pos;
             point_world.x = point_world_vec(0);
             point_world.y = point_world_vec(1);
             point_world.z = point_world_vec(2);
@@ -255,7 +255,7 @@ namespace livo
         }
         share_data.H.setZero();
         share_data.b.setZero();
-        Eigen::Matrix<double, 1, 12> J;
+        Eigen::Matrix<double, 1, 18> J;
         for (int i = 0; i < effect_feat_num; i++)
         {
             J.setZero();
@@ -263,12 +263,12 @@ namespace livo
             const PointType &norm_p = m_effect_norm_vec->points[i];
             Eigen::Vector3d laser_p_vec(laser_p.x, laser_p.y, laser_p.z);
             Eigen::Vector3d norm_vec(norm_p.x, norm_p.y, norm_p.z);
-            Eigen::Matrix<double, 1, 3> B = -norm_vec.transpose() * state.rot * Sophus::SO3d::hat(state.rot_ext * laser_p_vec + state.pos_ext);
+            Eigen::Matrix<double, 1, 3> B = -norm_vec.transpose() * state.rot * Sophus::SO3d::hat(state.r_il * laser_p_vec + state.p_il);
             J.block<1, 3>(0, 0) = norm_vec.transpose();
             J.block<1, 3>(0, 3) = B;
             if (m_config.esti_li)
             {
-                Eigen::Matrix<double, 1, 3> C = -norm_vec.transpose() * state.rot * state.rot_ext * Sophus::SO3d::hat(laser_p_vec);
+                Eigen::Matrix<double, 1, 3> C = -norm_vec.transpose() * state.rot * state.r_il * Sophus::SO3d::hat(laser_p_vec);
                 Eigen::Matrix<double, 1, 3> D = norm_vec.transpose() * state.rot;
                 J.block<1, 3>(0, 6) = C;
                 J.block<1, 3>(0, 9) = D;
