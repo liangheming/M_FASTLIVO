@@ -71,6 +71,16 @@ namespace kf
         return delta;
     }
 
+    std::ostream &operator<<(std::ostream &os, const State &state)
+    {
+        os << "p: " << state.pos.transpose() << std::endl
+           << "vel: " << state.vel.transpose() << std::endl
+           << "ba: " << state.ba.transpose() << std::endl
+           << "bg: " << state.bg.transpose() << std::endl
+           << "p_il" << state.p_il.transpose() << std::endl
+           << "p_cl" << state.p_cl.transpose() << std::endl;
+        return os;
+    }
     Matrix3x2d State::getBx() const
     {
         Matrix3x2d res;
@@ -134,6 +144,8 @@ namespace kf
         for (size_t i = 0; i < max_iter_; i++)
         {
             func_(x_, shared_data);
+            if (!shared_data.is_valid)
+                break;
             H_.setZero();
             b_.setZero();
             delta = x_ - predict_x;

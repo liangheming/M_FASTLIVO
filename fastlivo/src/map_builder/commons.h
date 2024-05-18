@@ -14,8 +14,8 @@ namespace livo
 
     struct Config
     {
-        double scan_resolution = 0.1;
-        double map_resolution = 0.25;
+        double scan_resolution = 0.25;
+        double map_resolution = 0.5;
 
         double cube_len = 300;
         double det_range = 60;

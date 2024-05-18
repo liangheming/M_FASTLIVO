@@ -1,4 +1,5 @@
 #pragma once
+#include <iostream>
 #include <Eigen/Eigen>
 #include <sophus/so3.hpp>
 namespace kf
@@ -34,6 +35,7 @@ namespace kf
         Matrix18d H;
         Vector18d b;
         size_t iter_num = 0;
+        bool is_valid = false;
     };
 
     struct State
@@ -75,6 +77,9 @@ namespace kf
         Matrix3x2d getMx(const Eigen::Vector2d &res) const;
 
         Matrix2x3d getNx() const;
+        
+        friend std::ostream& operator<<(std::ostream& os, const State& state);
+
     };
     struct Input
     {

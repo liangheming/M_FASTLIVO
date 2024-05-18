@@ -200,14 +200,24 @@ public:
             start_imu_time = m_sync_pack.imus.front().timestamp;
             end_imu_time = m_sync_pack.imus.back().timestamp;
         }
-        ROS_WARN("package type: %d, lidar begin: %.4f, imu begin:%.4f, image off: %.4f, imu end: %.4f, lidar end: %4f, imu_size: %lu",
-                 m_sync_pack.lidar_end,
-                 m_sync_pack.cloud_start_time,
-                 start_imu_time,
-                 m_sync_pack.image_time,
-                 end_imu_time,
-                 m_sync_pack.cloud_end_time,
-                 m_sync_pack.imus.size());
+        // ROS_WARN("package type: %d, lidar begin: %.4f, imu begin:%.4f, image off: %.4f, imu end: %.4f, lidar end: %4f, imu_size: %lu",
+        //          m_sync_pack.lidar_end,
+        //          m_sync_pack.cloud_start_time,
+        //          start_imu_time,
+        //          m_sync_pack.image_time,
+        //          end_imu_time,
+        //          m_sync_pack.cloud_end_time,
+        //          m_sync_pack.imus.size());
+        m_builder->process(m_sync_pack);
+
+        if (m_builder->status() != livo::Status::MAPPING)
+            return;
+        if (m_sync_pack.lidar_end)
+        {
+            m_br.sendTransform(eigen2Transform(m_builder->state().rot, m_builder->state().pos, m_node_config.map_frame, m_node_config.body_frame, m_sync_pack.cloud_end_time));
+            publishCloud(m_body_cloud_pub, m_builder->lidar2Body(m_sync_pack.cloud), m_node_config.body_frame, m_sync_pack.cloud_end_time);
+            publishCloud(m_world_cloud_pub, m_builder->lidar2World(m_sync_pack.cloud), m_node_config.map_frame, m_sync_pack.cloud_end_time);
+        }
     }
 
 private:

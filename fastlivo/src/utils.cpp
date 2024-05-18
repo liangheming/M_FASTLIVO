@@ -27,7 +27,7 @@
 //     }
 // }
 
-void livox2pcl(const livox_ros_driver::CustomMsg::ConstPtr &msg, pcl::PointCloud<pcl::PointXYZINormal>::Ptr out, int filter_num, double blind)
+void livox2pcl(const livox_ros_driver::CustomMsg::ConstPtr &msg, pcl::PointCloud<pcl::PointXYZINormal>::Ptr out, int filter_num, double blind, double max_range)
 {
     int point_num = msg->point_num;
     out->clear();
@@ -46,7 +46,8 @@ void livox2pcl(const livox_ros_driver::CustomMsg::ConstPtr &msg, pcl::PointCloud
             p.z = msg->points[i].z;
             p.intensity = msg->points[i].reflectivity;
             p.curvature = msg->points[i].offset_time / float(1000000); // 纳秒->毫秒
-            if ((p.x * p.x + p.y * p.y + p.z * p.z > (blind * blind)))
+            double sq_range = p.x * p.x + p.y * p.y + p.z * p.z;
+            if (sq_range > (blind * blind) && sq_range < (max_range * max_range))
             {
                 out->push_back(p);
             }

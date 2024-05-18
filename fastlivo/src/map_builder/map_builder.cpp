@@ -174,29 +174,43 @@ namespace livo
         {
             if (m_imu_processor->initialize(package))
                 m_status = Status::MAP_INIT;
+            // std::cout << "IMU INITIALIZED!" << std::endl;
         }
         else if (m_status == Status::MAP_INIT)
         {
             m_imu_processor->undistort(package);
-            m_ikdtree->Build(lidar2World(package.cloud)->points);
-            m_status = Status::MAPPING;
+            if (package.lidar_end)
+            {
+                m_ikdtree->Build(lidar2World(package.cloud)->points);
+                m_status = Status::MAPPING;
+            }
+            // std::cout << "MAP INITIALIZED!" << std::endl;
         }
         else
         {
             m_imu_processor->undistort(package);
-            if (m_config.scan_resolution > 0.0)
+            if (package.lidar_end)
             {
-                m_scan_filter.setInputCloud(package.cloud);
-                m_scan_filter.filter(*m_cloud_down_lidar);
+                std::cout << "PROCESS LIDAR ESIKF!!!" << std::endl;
+                if (m_config.scan_resolution > 0.0)
+                {
+                    m_scan_filter.setInputCloud(package.cloud);
+                    m_scan_filter.filter(*m_cloud_down_lidar);
+                }
+                else
+                {
+                    pcl::copyPointCloud(*package.cloud, *m_cloud_down_lidar);
+                }
+                trimMap();
+                m_kf->update();
+                incrMap();
             }
             else
             {
-                pcl::copyPointCloud(*package.cloud, *m_cloud_down_lidar);
+                std::cout << "PROCESS IMAGE ESIKF!!!" << std::endl;
             }
-            trimMap();
-            m_kf->update();
-            incrMap();
         }
+        std::cout << "===============FINISH UPDATE!================" << std::endl;
     }
 
     void MapBuilder::updateLidarLossFunc(kf::State &state, kf::SharedState &share_data)
@@ -250,9 +264,11 @@ namespace livo
         }
         if (effect_feat_num < 1)
         {
+            share_data.is_valid = false;
             std::cerr << "NO Effective Points!" << std::endl;
             return;
         }
+        share_data.is_valid = true;
         share_data.H.setZero();
         share_data.b.setZero();
         Eigen::Matrix<double, 1, 18> J;

@@ -29,7 +29,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: PointCloud2
+    SyncSource: ""
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -78,7 +78,7 @@ Visualization Manager:
       Size (Pixels): 1
       Size (m): 0.009999999776482582
       Style: Points
-      Topic: /temp_node/body_cloud
+      Topic: /lvio_node/body_cloud
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -106,7 +106,7 @@ Visualization Manager:
       Size (Pixels): 1
       Size (m): 0.009999999776482582
       Style: Points
-      Topic: /temp_node/world_cloud
+      Topic: /lvio_node/world_cloud
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -156,20 +156,26 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Angle: 0
-      Class: rviz/TopDownOrtho
+      Class: rviz/XYOrbit
+      Distance: 59.90452575683594
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
+      Field of View: 0.7853981852531433
+      Focal Point:
+        X: 0
+        Y: 0
+        Z: 0
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 36.278194427490234
+      Pitch: 0.6353981494903564
       Target Frame: <Fixed Frame>
-      X: 3.206294059753418
-      Y: 3.1860477924346924
+      Yaw: 3.260397434234619
     Saved: ~
 Window Geometry:
   Displays:

@@ -19,6 +19,7 @@ namespace livo
     bool IMUProcessor::initialize(SyncPackage &package)
     {
         m_imu_cache.insert(m_imu_cache.end(), package.imus.begin(), package.imus.end());
+        // std::cout << "INIT: " << m_imu_cache.size() << " | " << m_config.imu_init_num << " | " << package.lidar_end << std::endl;
         if (m_imu_cache.size() < m_config.imu_init_num || !package.lidar_end)
             return false;
         Eigen::Vector3d acc_mean = Eigen::Vector3d::Zero();
@@ -80,7 +81,8 @@ namespace livo
         Eigen::Vector3d acc_val, gyro_val;
         double dt = 0.0;
         kf::Input inp;
-
+        inp.acc = m_imu_cache.back().acc;
+        inp.gyro = m_imu_cache.back().gyro;
         for (auto it_imu = m_imu_cache.begin(); it_imu < (m_imu_cache.end() - 1); it_imu++)
         {
             IMUData &head = *it_imu;
