@@ -59,7 +59,8 @@ namespace livo
         CloudType::Ptr m_effect_cloud_lidar;
         CloudType::Ptr m_effect_norm_vec;
         std::vector<PointVec> m_nearest_points;
-
         pcl::VoxelGrid<PointType> m_scan_filter;
+        
+        CloudType::Ptr m_latest_cloud;
     };
 }

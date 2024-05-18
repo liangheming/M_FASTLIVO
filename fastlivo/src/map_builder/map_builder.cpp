@@ -26,6 +26,8 @@ namespace livo
             m_scan_filter.setLeafSize(m_config.scan_resolution, m_config.scan_resolution, m_config.scan_resolution);
         }
         m_status = Status::IMU_INIT;
+
+        m_latest_cloud = nullptr;
     }
 
     void MapBuilder::incrMap()
@@ -204,10 +206,15 @@ namespace livo
                 trimMap();
                 m_kf->update();
                 incrMap();
+                m_latest_cloud = lidar2World(package.cloud);
             }
             else
             {
-                std::cout << "PROCESS IMAGE ESIKF!!!" << std::endl;
+                if (m_latest_cloud != nullptr)
+                {
+                    std::cout << "PROCESS IMAGE IESKF!!!" << std::endl;
+                    std::cout << "LATEST CLOUD SIZE: " << m_latest_cloud->size() << std::endl;
+                }
             }
         }
         std::cout << "===============FINISH UPDATE!================" << std::endl;
