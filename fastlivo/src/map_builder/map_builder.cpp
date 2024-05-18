@@ -214,6 +214,7 @@ namespace livo
                 {
                     std::cout << "PROCESS IMAGE IESKF!!!" << std::endl;
                     std::cout << "LATEST CLOUD SIZE: " << m_latest_cloud->size() << std::endl;
+                    std::cout << "IMG WIDTH: " << package.image.cols << " HEIGHT: " << package.image.rows << std::endl;
                 }
             }
         }
