@@ -1,8 +1,11 @@
 #pragma once
 #include <list>
+#include <unordered_map>
 #include <cstdint>
 #include <Eigen/Eigen>
 #include <opencv2/opencv.hpp>
+#include "ieskf.h"
+#include "camera.h"
 
 #define HASH_P 116101
 #define MAX_N 10000000000
@@ -60,6 +63,17 @@ namespace livo
         size_t n_obs;
     };
 
-    
-    
+    class LidarSelector
+    {
+    public:
+        LidarSelector(std::shared_ptr<kf::IESKF> kf,std::shared_ptr<PinholeCamera> camera);
+
+    private:
+        double m_grid_size;
+        double m_patch_size;
+        std::shared_ptr<kf::IESKF> m_kf;
+        std::shared_ptr<PinholeCamera> m_camera;
+        std::unordered_map<VoxelKey, std::vector<Point>, VoxelKey::Hasher> m_feat_map;
+    };
+
 } // namespace livo
