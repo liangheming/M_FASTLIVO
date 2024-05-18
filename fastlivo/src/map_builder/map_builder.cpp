@@ -193,7 +193,7 @@ namespace livo
             m_imu_processor->undistort(package);
             if (package.lidar_end)
             {
-                std::cout << "PROCESS LIDAR ESIKF!!!" << std::endl;
+                // std::cout << "PROCESS LIDAR ESIKF!!!" << std::endl;
                 if (m_config.scan_resolution > 0.0)
                 {
                     m_scan_filter.setInputCloud(package.cloud);
@@ -217,7 +217,7 @@ namespace livo
                 }
             }
         }
-        std::cout << "===============FINISH UPDATE!================" << std::endl;
+        // std::cout << "===============FINISH UPDATE!================" << std::endl;
     }
 
     void MapBuilder::updateLidarLossFunc(kf::State &state, kf::SharedState &share_data)
