@@ -1,11 +1,14 @@
 #pragma once
 #include <list>
+#include <unordered_set>
 #include <unordered_map>
 #include <cstdint>
 #include <Eigen/Eigen>
 #include <opencv2/opencv.hpp>
 #include "ieskf.h"
 #include "camera.h"
+#include "commons.h"
+#include <pcl/filters/voxel_grid.h>
 
 #define HASH_P 116101
 #define MAX_N 10000000000
@@ -63,17 +66,54 @@ namespace livo
         size_t n_obs;
     };
 
+    struct ReferencePoint
+    {
+        std::shared_ptr<Point> point;
+        double error;
+        cv::Mat patch;
+        int level;
+    };
+
     class LidarSelector
     {
     public:
-        LidarSelector(std::shared_ptr<kf::IESKF> kf,std::shared_ptr<PinholeCamera> camera);
+        LidarSelector(std::shared_ptr<kf::IESKF> kf,
+                      std::shared_ptr<PinholeCamera> camera,
+                      int patch_size,
+                      int grid_size,
+                      double scan_res,
+                      double voxel_size);
+
+        bool getReferencePoints(CloudType::Ptr cloud, std::vector<ReferencePoint> &reference_points);
+
+        Eigen::Vector3d w2f(const Eigen::Vector3d &pw);
+
+        Eigen::Vector2d f2c(const Eigen::Vector3d &pf);
+
+        void updateFrameState();
 
     private:
-        double m_grid_size;
-        double m_patch_size;
+        int m_grid_size;
+        int m_patch_size;
+        int m_patch_size_half;
+        int m_patch_n_pixels;
+        int m_grid_n_width;
+        int m_grid_n_height;
+        int m_grid_flat_length;
+        double m_scan_resolution = 0.2;
+        double m_voxel_size = 0.5;
         std::shared_ptr<kf::IESKF> m_kf;
         std::shared_ptr<PinholeCamera> m_camera;
-        std::unordered_map<VoxelKey, std::vector<Point>, VoxelKey::Hasher> m_feat_map;
+        std::unordered_map<VoxelKey, std::vector<std::shared_ptr<Point>>, VoxelKey::Hasher> m_feat_map;
+        pcl::VoxelGrid<PointType> m_scan_filter;
+        Eigen::Matrix3d m_r_fw;
+        Eigen::Vector3d m_p_fw;
+        Eigen::Matrix3d m_r_wf;
+        Eigen::Vector3d m_p_wf;
+
+        std::vector<double> temp_depth;
+        std::vector<bool> temp_grid_flag;
+        std::vector<std::shared_ptr<Point>> temp_grid_points;
     };
 
 } // namespace livo

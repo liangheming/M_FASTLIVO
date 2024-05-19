@@ -22,13 +22,21 @@ namespace livo
 
         void undistortImage(const cv::Mat &raw, cv::Mat &rectified);
 
-        int width() const { return static_cast<int>(m_width); }
+        inline int width() const { return static_cast<int>(m_width); }
 
-        int height() const { return static_cast<int>(m_height); }
+        inline int height() const { return static_cast<int>(m_height); }
+
+        inline double fx() const { return m_fx; }
+
+        inline double fy() const { return m_fy; }
+
+        inline double cx() const { return m_cx; }
+
+        inline double cy() const { return m_cy; }
 
         bool isInFrame(const Eigen::Vector2i &obs, int boundary = 0) const;
 
-        static float shiTomasiScore(const cv::Mat& img, int u, int v);
+        static float shiTomasiScore(const cv::Mat &img, int u, int v);
 
     private:
         double m_width;
