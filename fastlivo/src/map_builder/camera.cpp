@@ -143,4 +143,23 @@ namespace livo
         return 0.5 * (dXX + dYY - sqrt((dXX + dYY) * (dXX + dYY) - 4 * (dXX * dYY - dXY * dXY)));
     }
 
+    float PinholeCamera::interpolateMat_8u(const cv::Mat &mat, float u, float v)
+    {
+        assert(mat.type() == CV_8U);
+        int x = floor(u);
+        int y = floor(v);
+        float subpix_x = u - x;
+        float subpix_y = v - y;
+
+        float w00 = (1.0f - subpix_x) * (1.0f - subpix_y);
+        float w01 = (1.0f - subpix_x) * subpix_y;
+        float w10 = subpix_x * (1.0f - subpix_y);
+        float w11 = 1.0f - w00 - w01 - w10;
+
+        const int stride = mat.step.p[0];
+        unsigned char *ptr = mat.data + y * stride + x;
+        return w00 * ptr[0] + w01 * ptr[stride] + w10 * ptr[1] + w11 * ptr[stride + 1];
+
+    }
+    
 } // namespace livo

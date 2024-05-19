@@ -38,6 +38,8 @@ namespace livo
 
         static float shiTomasiScore(const cv::Mat &img, int u, int v);
 
+        static float interpolateMat_8u(const cv::Mat& mat, float u, float v);
+
     private:
         double m_width;
         double m_height;

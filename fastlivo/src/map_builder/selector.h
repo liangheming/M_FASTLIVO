@@ -43,7 +43,12 @@ namespace livo
         Feature(const Eigen::Vector2d &_px, const Eigen::Vector3d &_fp, const Eigen::Matrix3d &_r_fw, const Eigen::Vector3d _p_fw, double _score, int _level)
             : px(_px), fp(_fp), r_fw(_r_fw), p_fw(_p_fw), score(_score), level(_level) {}
 
+        Eigen::Matrix3d r_wf() { return r_fw.transpose(); }
+
+        Eigen::Vector3d p_wf() { return -r_fw.transpose() * p_fw; }
+
     public:
+        size_t frame_id;
         cv::Mat frame;
         Eigen::Vector2d px;
         Eigen::Vector3d fp;
@@ -60,10 +65,13 @@ namespace livo
 
         void addObs(std::shared_ptr<Feature> ftr);
 
+        bool getCloseViewObs(const Eigen::Vector3d &cam_pos, std::shared_ptr<Feature> &out, double thresh = 0.5);
+
     public:
         Eigen::Vector3d pos;
-        std::list<Feature> obs;
+        std::list<std::shared_ptr<Feature>> obs;
         size_t n_obs;
+        double value;
     };
 
     struct ReferencePoint
@@ -84,13 +92,25 @@ namespace livo
                       double scan_res,
                       double voxel_size);
 
-        bool getReferencePoints(CloudType::Ptr cloud, std::vector<ReferencePoint> &reference_points);
+        bool getReferencePoints(cv::Mat gray_img, CloudType::Ptr cloud, std::vector<ReferencePoint> &reference_points);
 
         Eigen::Vector3d w2f(const Eigen::Vector3d &pw);
 
         Eigen::Vector2d f2c(const Eigen::Vector3d &pf);
 
         void updateFrameState();
+
+        void resetCache();
+
+        int gridIndex(const Eigen::Vector2d &px);
+
+        int getBestSearchLevel(const Eigen::Matrix2d &A_cur_ref, const int max_level);
+
+        void wrapAffine(const Eigen::Matrix2d &affine, const Eigen::Vector2d &px_ref, const cv::Mat &img_ref, const int level_cur, cv::Mat &patch);
+
+        void getPatch(cv::Mat img, const Eigen::Vector2d px, cv::Mat &patch, int level);
+
+        Eigen::Matrix2d getWarpMatrixAffine(const Eigen::Vector2d &px_ref, const Eigen::Vector3d &fp_ref, const double depth_ref, const Eigen::Matrix3d &r_cr, const Eigen::Vector3d &t_cr);
 
     private:
         int m_grid_size;
@@ -111,9 +131,12 @@ namespace livo
         Eigen::Matrix3d m_r_wf;
         Eigen::Vector3d m_p_wf;
 
-        std::vector<double> temp_depth;
-        std::vector<bool> temp_grid_flag;
-        std::vector<std::shared_ptr<Point>> temp_grid_points;
+        std::vector<double> cache_depth;
+        std::vector<bool> cache_grid_flag;
+        std::vector<std::shared_ptr<Point>> cache_grid_points;
+        std::vector<double> cache_grid_dist;
+        std::vector<double> cache_grid_cur;
+        std::vector<ReferencePoint> cache_reference_points;
     };
 
 } // namespace livo
