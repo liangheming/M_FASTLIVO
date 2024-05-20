@@ -84,7 +84,7 @@ namespace livo
 
     struct ReferencePoint
     {
-        Point* point;
+        Point *point;
         double error;
         cv::Mat patch;
         int level;
@@ -128,6 +128,10 @@ namespace livo
 
         void process(cv::Mat img, CloudType::Ptr cloud, bool is_new_cloud);
 
+        Eigen::Vector3d getPixelBRG(cv::Mat img_bgr, const Eigen::Vector2d &px);
+
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr getCurentCloudRGB();
+
     private:
         int m_grid_size;
         int m_patch_size;
@@ -146,10 +150,12 @@ namespace livo
         Eigen::Vector3d m_p_fw;
         Eigen::Matrix3d m_r_wf;
         Eigen::Vector3d m_p_wf;
-
+        CloudType::Ptr m_cloud;
+        cv::Mat m_img_bgr;
+        cv::Mat m_img_gray;
         std::vector<double> cache_depth;
         std::vector<bool> cache_grid_flag;
-        std::vector<Point*> cache_grid_points;
+        std::vector<Point *> cache_grid_points;
         std::vector<double> cache_grid_dist;
         std::vector<double> cache_grid_cur;
         std::vector<Eigen::Vector3d> cache_grid_add_points;

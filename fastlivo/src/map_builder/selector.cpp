@@ -336,7 +336,7 @@ namespace livo
         m_scan_filter.filter(*cloud_ds);
 
         std::unordered_set<VoxelKey, VoxelKey::Hasher> selected_voxels;
-
+        std::cout << "111111111111111, SELECT VOXELS" << std::endl;
         for (auto p : cloud_ds->points)
         {
             Eigen::Vector3d pw(p.x, p.y, p.z);
@@ -357,7 +357,7 @@ namespace livo
         }
 
         cache_grid_cur.assign(m_grid_flat_length, 0.0);
-
+        std::cout << "22222222222222, SELECT POINTS" << std::endl;
         for (auto k : selected_voxels)
         {
             auto it = m_feat_map.find(k);
@@ -389,6 +389,7 @@ namespace livo
 
         std::vector<ReferencePoint>().swap(cache_reference_points);
 
+        std::cout << "33333333333333, SELECT REFERENCE POINTS" << std::endl;
         for (int i = 0; i < m_grid_flat_length; i++)
         {
             if (!cache_grid_flag[i])
@@ -419,10 +420,8 @@ namespace livo
             if (depth_continous)
                 continue;
             std::shared_ptr<Feature> feat;
-            // std::cout << "after depth check!" << std::endl;
             if (!p->getCloseViewObs(m_p_wf, feat, 0.5))
                 continue;
-            // std::cout << "after obs check!" << std::endl;
             Eigen::Matrix3d r_cr = m_r_fw * feat->r_wf();
             Eigen::Vector3d p_cr = m_r_fw * feat->p_wf() + m_p_fw;
             Eigen::Matrix2d affine_cr = getWarpMatrixAffine(feat->px, feat->fp, (feat->p_wf() - m_p_wf).norm(), r_cr, p_cr);
@@ -443,7 +442,6 @@ namespace livo
 
             if (sq_dist > 100 * m_patch_n_pixels)
                 continue;
-            // std::cout << "after outlier check!" << std::endl;
             ReferencePoint ref_point;
             ref_point.error = sq_dist;
             ref_point.level = search_level;
@@ -463,21 +461,22 @@ namespace livo
         {
             cv::resize(img, img, cv::Size2i(m_camera->width(), m_camera->height()), 0, 0, cv::INTER_LINEAR);
         }
-        cv::Mat img_color = img.clone();
-        cv::cvtColor(img, img, cv::COLOR_BGR2GRAY);
+        m_img_bgr = img.clone();
+        cv::cvtColor(img, m_img_gray, cv::COLOR_BGR2GRAY);
         std::cout << "is new cloud: " << is_new_cloud << " width: " << img.cols << " height: " << img.rows << std::endl;
+        m_cloud = cloud;
 
         updateFrameState();
 
         std::cout << "GET REFERENCE POINTS" << std::endl;
 
-        getReferencePoints(img, cloud);
+        getReferencePoints(m_img_gray, cloud);
 
         std::cout << "INCRVISUALMAP" << std::endl;
 
         if (is_new_cloud)
         {
-            int add_count = incrVisualMap(img, cloud);
+            int add_count = incrVisualMap(m_img_gray, cloud);
             std::cout << "FEAT_MAP_SIZE: " << m_feat_map.size() << std::endl;
             std::cout << "ADD POINT COUNT: " << add_count << std::endl;
         }
@@ -487,9 +486,64 @@ namespace livo
 
         // 更新状态
 
+        updateFrameState();
+
         // 如果是新的地图点，需要更新视觉地图
 
         // 根据新的状态更新观测
     }
 
+    Eigen::Vector3d LidarSelector::getPixelBRG(cv::Mat img_bgr, const Eigen::Vector2d &px)
+    {
+        const double u_ref = px[0];
+        const double v_ref = px[1];
+        const int u_ref_i = floorf(px[0]);
+        const int v_ref_i = floorf(px[1]);
+        const double subpix_u_ref = (u_ref - u_ref_i);
+        const double subpix_v_ref = (v_ref - v_ref_i);
+        const double w_ref_tl = (1.0 - subpix_u_ref) * (1.0 - subpix_v_ref);
+        const double w_ref_tr = subpix_u_ref * (1.0 - subpix_v_ref);
+        const double w_ref_bl = (1.0 - subpix_u_ref) * subpix_v_ref;
+        const double w_ref_br = subpix_u_ref * subpix_v_ref;
+        cv::Vec3b &tl = img_bgr.ptr<cv::Vec3b>(v_ref_i)[u_ref_i];
+        cv::Vec3b &tr = img_bgr.ptr<cv::Vec3b>(v_ref_i)[u_ref_i + 1];
+        cv::Vec3b &bl = img_bgr.ptr<cv::Vec3b>(v_ref_i + 1)[u_ref_i];
+        cv::Vec3b &br = img_bgr.ptr<cv::Vec3b>(v_ref_i + 1)[u_ref_i + 1];
+
+        Eigen::Vector3d tl_v(tl[0], tl[1], tl[2]);
+        Eigen::Vector3d tr_v(tr[0], tr[1], tr[2]);
+        Eigen::Vector3d bl_v(bl[0], bl[1], bl[2]);
+        Eigen::Vector3d br_v(br[0], br[1], br[2]);
+
+        return w_ref_tl * tl_v + w_ref_tr * tr_v + w_ref_bl * bl_v + w_ref_br * br_v;
+    }
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr LidarSelector::getCurentCloudRGB()
+    {
+
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr ret(new pcl::PointCloud<pcl::PointXYZRGB>);
+        if (m_cloud == nullptr || m_cloud->size() <= 0)
+            return ret;
+        ret->reserve(m_cloud->size());
+        for (auto p : m_cloud->points)
+        {
+            Eigen::Vector3d pw = Eigen::Vector3d(p.x, p.y, p.z);
+            Eigen::Vector3d pf = w2f(pw);
+            if (pf(2) <= 0)
+                continue;
+            Eigen::Vector2d pc = m_camera->world2cam(pf);
+            if (!m_camera->isInFrame(pc.cast<int>(), 1))
+                continue;
+            Eigen::Vector3f bgr = getPixelBRG(m_img_bgr, pc).cast<float>();
+            pcl::PointXYZRGB p_color;
+            p_color.x = p.x;
+            p_color.y = p.y;
+            p_color.z = p.z;
+            p_color.b = bgr(0);
+            p_color.g = bgr(1);
+            p_color.r = bgr(2);
+            ret->push_back(p_color);
+        }
+        return ret;
+    }
 } // namespace livo

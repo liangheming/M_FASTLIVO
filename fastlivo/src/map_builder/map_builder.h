@@ -44,6 +44,8 @@ namespace livo
 
         const kf::State &state() { return m_kf->x(); }
 
+        const std::shared_ptr<LidarSelector> lidarSelector() { return m_lidar_selector; }
+
     private:
         Config m_config;
         Status m_status;

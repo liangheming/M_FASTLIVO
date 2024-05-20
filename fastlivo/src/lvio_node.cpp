@@ -68,7 +68,10 @@ public:
     void initPublisher()
     {
         m_body_cloud_pub = m_nh.advertise<sensor_msgs::PointCloud2>("body_cloud", 1000);
+
         m_world_cloud_pub = m_nh.advertise<sensor_msgs::PointCloud2>("world_cloud", 1000);
+
+        m_world_cloud_color_pub = m_nh.advertise<sensor_msgs::PointCloud2>("world_cloud_color", 1000);
     }
 
     void imuCB(const sensor_msgs::Imu::ConstPtr msg)
@@ -199,6 +202,22 @@ public:
         cloud_pub.publish(pcl2msg(cloud, frame_id, sec));
     }
 
+    void publishCloudColor(ros::Publisher &cloud_pub, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double &sec)
+    {
+        if (cloud_pub.getNumSubscribers() < 1)
+            return;
+        if (cloud->size() <= 0)
+            return;
+        sensor_msgs::PointCloud2 msg;
+        pcl::toROSMsg(*cloud, msg);
+        if (sec < 0)
+            msg.header.stamp = ros::Time().now();
+        else
+            msg.header.stamp = ros::Time().fromSec(sec);
+        msg.header.frame_id = m_node_config.map_frame;
+        cloud_pub.publish(msg);
+    }
+
     void mainCB(const ros::TimerEvent &e)
     {
         if (!syncPackage())
@@ -222,11 +241,17 @@ public:
 
         if (m_builder->status() != livo::Status::MAPPING)
             return;
+
         if (m_sync_pack.lidar_end)
         {
             m_br.sendTransform(eigen2Transform(m_builder->state().rot, m_builder->state().pos, m_node_config.map_frame, m_node_config.body_frame, m_sync_pack.cloud_end_time));
             publishCloud(m_body_cloud_pub, m_builder->lidar2Body(m_sync_pack.cloud), m_node_config.body_frame, m_sync_pack.cloud_end_time);
             publishCloud(m_world_cloud_pub, m_builder->lidar2World(m_sync_pack.cloud), m_node_config.map_frame, m_sync_pack.cloud_end_time);
+        }
+        else
+        {
+            pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_color = m_builder->lidarSelector()->getCurentCloudRGB();
+            publishCloudColor(m_world_cloud_color_pub, cloud_color, m_sync_pack.image_time);
         }
     }
 
@@ -238,6 +263,7 @@ private:
 
     ros::Publisher m_body_cloud_pub;
     ros::Publisher m_world_cloud_pub;
+    ros::Publisher m_world_cloud_color_pub;
 
     ros::Timer main_loop;
     DataGroup m_group_data;
