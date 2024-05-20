@@ -8,7 +8,7 @@ namespace livo
         Eigen::Vector3d idx = (point / resolution + Eigen::Vector3d(bias, bias, bias)).array().floor();
         return VoxelKey(static_cast<int64_t>(idx(0)), static_cast<int64_t>(idx(1)), static_cast<int64_t>(idx(2)));
     }
-
+    Point::Point(const Eigen::Vector3d &_pos) : pos(_pos) {}
     bool Point::getCloseViewObs(const Eigen::Vector3d &cam_pos, std::shared_ptr<Feature> &out, double thresh)
     {
         if (obs.size() <= 0)
@@ -34,6 +34,44 @@ namespace livo
         return true;
     }
 
+    void Point::addObs(std::shared_ptr<Feature> ftr)
+    {
+        obs.push_front(ftr);
+        n_obs++;
+    }
+
+    bool Point::getFurthestViewObs(const Eigen::Vector3d &cam_pos, std::shared_ptr<Feature> &out)
+    {
+        if (obs.size() <= 0)
+            return false;
+
+        auto max_it = obs.begin();
+        double maxdist = 0.0;
+        for (auto it = obs.begin(); it != obs.end(); it++)
+        {
+            double dist = ((*it)->p_wf() - cam_pos).norm();
+            if (dist > maxdist)
+            {
+                maxdist = dist;
+                max_it = it;
+            }
+        }
+        out = *max_it;
+        return true;
+    }
+
+    void Point::deleteFeatureRef(std::shared_ptr<Feature> feat)
+    {
+        for (auto it = obs.begin(); it != obs.end(); ++it)
+        {
+            if ((*it) == feat)
+            {
+                obs.erase(it);
+                return;
+            }
+        }
+    }
+
     LidarSelector::LidarSelector(std::shared_ptr<kf::IESKF> kf,
                                  std::shared_ptr<PinholeCamera> camera,
                                  int patch_size,
@@ -52,18 +90,17 @@ namespace livo
         m_r_fw.setIdentity();
         m_p_fw.setZero();
 
-        cache_depth.reserve(camera->width() * camera->height());
-        cache_grid_flag.reserve(m_grid_flat_length);
-        cache_grid_points.reserve(m_grid_flat_length);
-        cache_grid_dist.reserve(m_grid_flat_length);
-        cache_grid_cur.reserve(m_grid_flat_length);
+        cache_depth.resize(camera->width() * camera->height());
+        cache_grid_flag.resize(m_grid_flat_length, false);
+        cache_grid_points.resize(m_grid_flat_length, nullptr);
+        cache_grid_dist.resize(m_grid_flat_length, 10000.0);
+        cache_grid_cur.resize(m_grid_flat_length, 0.0);
+        cache_grid_add_points.resize(m_grid_flat_length, Eigen::Vector3d::Zero());
     }
 
     void LidarSelector::updateFrameState()
     {
         kf::State &x = m_kf->x();
-        // Eigen::Matrix3d r_l_w = x.r_il.transpose() * x.rot.transpose();
-        // Eigen::Vector3d p_l_w = -x.r_il.transpose() * (x.rot.transpose() * x.pos + x.p_il);
 
         m_r_fw = x.r_cl * x.r_il.transpose() * x.rot.transpose();
 
@@ -86,11 +123,10 @@ namespace livo
 
     void LidarSelector::resetCache()
     {
-        cache_depth.resize(m_camera->width() * m_camera->height(), 0.0);
-        cache_grid_flag.resize(m_grid_flat_length, false);
-        cache_grid_points.resize(m_grid_flat_length, nullptr);
-        cache_grid_dist.resize(m_grid_flat_length, 10000.0);
-        cache_grid_cur.resize(m_grid_flat_length, 0.0);
+        cache_depth.assign(m_camera->width() * m_camera->height(), 0.0);
+        cache_grid_flag.assign(m_grid_flat_length, false);
+        cache_grid_points.assign(m_grid_flat_length, nullptr);
+        cache_grid_dist.assign(m_grid_flat_length, 10000.0);
     }
 
     int LidarSelector::gridIndex(const Eigen::Vector2d &px)
@@ -179,14 +215,122 @@ namespace livo
         }
     }
 
-    bool LidarSelector::getReferencePoints(cv::Mat gray_img, CloudType::Ptr cloud, std::vector<ReferencePoint> &reference_points)
+    void LidarSelector::addPoint(std::shared_ptr<Point> point)
+    {
+        Eigen::Vector3d pt_w(point->pos[0], point->pos[1], point->pos[2]);
+        VoxelKey k = VoxelKey::index(pt_w.x(), pt_w.y(), pt_w.z(), m_voxel_size, 0.0);
+
+        auto iter = m_feat_map.find(k);
+        if (iter == m_feat_map.end())
+        {
+            m_feat_map[k] = std::vector<std::shared_ptr<Point>>();
+        }
+        m_feat_map[k].push_back(point);
+    }
+
+    void LidarSelector::addObservations(cv::Mat img)
+    {
+        int total_points = cache_reference_points.size();
+        if (total_points <= 0)
+            return;
+        for (int i = 0; i < total_points; i++)
+        {
+            ReferencePoint &rp = cache_reference_points[i];
+            std::shared_ptr<Point> p_ptr = rp.point;
+            Eigen::Vector2d pc = f2c(w2f(p_ptr->pos));
+
+            std::shared_ptr<Feature> last_feature = p_ptr->obs.back();
+            Eigen::Matrix3d last_r_wf = last_feature->r_wf();
+            Eigen::Vector3d last_p_wf = last_feature->p_wf();
+            double delta_p = (m_p_wf - last_p_wf).norm();
+            Eigen::Matrix3d delta_r = last_r_wf.transpose() * m_r_wf;
+            double delta_theta = (delta_r.trace() > 3.0 - 1e-6) ? 0.0 : std::acos(0.5 * (delta_r.trace() - 1));
+
+            if (delta_p <= 0.5 && delta_theta <= 10)
+                continue;
+            Eigen::Vector2d last_px = last_feature->px;
+            double pixel_dist = (pc - last_px).norm();
+            if (pixel_dist <= 40)
+                continue;
+
+            if (p_ptr->obs.size() >= 20)
+            {
+                std::shared_ptr<Feature> feat_to_delete;
+                if (p_ptr->getFurthestViewObs(m_p_wf, feat_to_delete))
+                    p_ptr->deleteFeatureRef(feat_to_delete);
+            }
+
+            p_ptr->value = PinholeCamera::shiTomasiScore(img, static_cast<int>(pc[0]), static_cast<int>(pc[1]));
+            Eigen::Vector3d pf = m_camera->cam2world(pc);
+
+            cv::Mat patch0(m_patch_size, m_patch_size, CV_32FC1), patch1(m_patch_size, m_patch_size, CV_32FC1), patch2(m_patch_size, m_patch_size, CV_32FC1);
+            getPatch(img, pc, patch0, 0);
+            getPatch(img, pc, patch1, 1);
+            getPatch(img, pc, patch2, 2);
+            std::shared_ptr<Feature> feat = std::make_shared<Feature>(pc, pf, m_r_fw, m_p_fw, p_ptr->value, 0);
+            feat->frame = img;
+            feat->patches[0] = patch0;
+            feat->patches[1] = patch1;
+            feat->patches[2] = patch2;
+            p_ptr->addObs(feat);
+        }
+    }
+
+    int LidarSelector::incrVisualMap(cv::Mat img, CloudType::Ptr cloud)
+    {
+        cache_grid_flag.assign(m_grid_flat_length, false);
+        for (int i = 0; i < cloud->size(); i++)
+        {
+            Eigen::Vector3d pw(cloud->points[i].x, cloud->points[i].y, cloud->points[i].z);
+            Eigen::Vector3d pf = w2f(pw);
+            if (pf(2) <= 0)
+                continue;
+            Eigen::Vector2d pc = f2c(pf);
+            if (!m_camera->isInFrame(pc.cast<int>(), (m_patch_size_half + 1) * 8))
+                continue;
+
+            int index = gridIndex(pc);
+            double cur_value = static_cast<double>(PinholeCamera::shiTomasiScore(img, static_cast<int>(pc[0]), static_cast<int>(pc[1])));
+            if (cur_value > cache_grid_cur[index])
+            {
+
+                cache_grid_cur[index] = cur_value;
+                cache_grid_add_points[index] = pw;
+                cache_grid_flag[index] = true;
+            }
+        }
+
+        int count = 0;
+        for (int i = 0; i < m_grid_flat_length; i++)
+        {
+            if (!cache_grid_flag[i])
+                continue;
+            Eigen::Vector3d pw = cache_grid_add_points[i];
+            Eigen::Vector2d pc = f2c(w2f(pw));
+            cv::Mat patch0(m_patch_size, m_patch_size, CV_32FC1), patch1(m_patch_size, m_patch_size, CV_32FC1), patch2(m_patch_size, m_patch_size, CV_32FC1);
+            getPatch(img, pc, patch0, 0);
+            getPatch(img, pc, patch1, 1);
+            getPatch(img, pc, patch2, 2);
+            std::shared_ptr<Point> p_add = std::make_shared<Point>(pw);
+            Eigen::Vector3d pf = m_camera->cam2world(pc);
+            std::shared_ptr<Feature> feat = std::make_shared<Feature>(pc, pf, m_r_fw, m_p_fw, cache_grid_cur[i], 0);
+            feat->patches[0] = patch0;
+            feat->patches[1] = patch1;
+            feat->patches[2] = patch2;
+            feat->frame = img;
+            p_add->addObs(feat);
+            p_add->value = cache_grid_cur[i];
+            addPoint(p_add);
+            count++;
+        }
+        return count;
+    }
+
+    bool LidarSelector::getReferencePoints(cv::Mat gray_img, CloudType::Ptr cloud)
     {
         if (m_feat_map.size() <= 0)
             return false;
-        updateFrameState();
-
         resetCache();
-
         CloudType::Ptr cloud_ds(new CloudType);
         m_scan_filter.setInputCloud(cloud);
         m_scan_filter.filter(*cloud_ds);
@@ -212,6 +356,8 @@ namespace livo
             cache_depth[m_camera->width() * px(1) + px(0)] = pc(2);
         }
 
+        cache_grid_cur.assign(m_grid_flat_length, 0.0);
+
         for (auto k : selected_voxels)
         {
             auto it = m_feat_map.find(k);
@@ -226,25 +372,21 @@ namespace livo
                 Eigen::Vector2d px = f2c(pc);
                 if (!m_camera->isInFrame(px.cast<int>(), (m_patch_size_half + 1) * 8))
                     continue;
-
                 int index = gridIndex(px);
                 cache_grid_flag[index] = true;
                 Eigen::Vector3d obs_vec(m_p_wf - p->pos);
-
                 double cur_dist = obs_vec.norm();
-                float cur_value = p->value;
-
+                double cur_value = p->value;
                 if (cur_dist <= cache_grid_dist[index])
                 {
                     cache_grid_dist[index] = cur_dist;
-                    cache_grid_points[index] = p;
+                    cache_grid_points[index] = p.get();
                 }
-
                 if (cur_value >= cache_grid_cur[index])
                     cache_grid_cur[index] = cur_value;
             }
         }
-
+        /*
         std::vector<ReferencePoint>().swap(cache_reference_points);
 
         for (int i = 0; i < m_grid_flat_length; i++)
@@ -301,13 +443,52 @@ namespace livo
             if (sq_dist > 100 * m_patch_n_pixels)
                 continue;
 
-            ReferencePoint ref_point;
-            ref_point.error = sq_dist;
-            ref_point.level = search_level;
-            ref_point.patch = ref_patch;
-            ref_point.point = p;
-            cache_reference_points.push_back(ref_point);
+            // ReferencePoint ref_point;
+            // ref_point.error = sq_dist;
+            // ref_point.level = search_level;
+            // ref_point.patch = ref_patch;
+            // ref_point.point = p;
+            // cache_reference_points.push_back(ref_point);
         }
+        */
+
+        return true;
+    }
+
+    void LidarSelector::process(cv::Mat img, CloudType::Ptr cloud, bool is_new_cloud)
+    {
+
+        if (img.cols != m_camera->width() || img.rows != m_camera->height())
+        {
+            cv::resize(img, img, cv::Size2i(m_camera->width(), m_camera->height()), 0, 0, cv::INTER_LINEAR);
+        }
+        cv::Mat img_color = img.clone();
+        cv::cvtColor(img, img, cv::COLOR_BGR2GRAY);
+        std::cout << "is new cloud: " << is_new_cloud << " width: " << img.cols << " height: " << img.rows << std::endl;
+
+        updateFrameState();
+
+        std::cout << "GET REFERENCE POINTS" << std::endl;
+
+        getReferencePoints(img, cloud);
+
+        std::cout << "INCRVISUALMAP" << std::endl;
+
+        if (is_new_cloud)
+        {
+            int add_count = incrVisualMap(img, cloud);
+            std::cout << "FEAT_MAP_SIZE: " << m_feat_map.size() << std::endl;
+            std::cout << "ADD POINT COUNT: " << add_count << std::endl;
+        }
+
+        std::cout << "FUNCTION FINISHED!" << std::endl;
+        // 找到匹配特征
+
+        // 更新状态
+
+        // 如果是新的地图点，需要更新视觉地图
+
+        // 根据新的状态更新观测
     }
 
 } // namespace livo

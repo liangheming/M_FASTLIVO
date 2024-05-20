@@ -94,7 +94,7 @@ namespace livo
             rectified = raw.clone();
     }
 
-    bool PinholeCamera::isInFrame(const Eigen::Vector2i &obs, int boundary = 0) const
+    bool PinholeCamera::isInFrame(const Eigen::Vector2i &obs, int boundary) const
     {
         if (obs(0) >= boundary && obs(0) < width() - boundary && obs[1] >= boundary && obs[1] < height() - boundary)
             return true;

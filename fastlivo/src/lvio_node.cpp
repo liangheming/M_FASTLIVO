@@ -46,6 +46,16 @@ public:
 
     void loadCofig()
     {
+        std::vector<double> r_il, p_il, r_cl, p_cl;
+        m_nh.param<std::vector<double>>("r_il", r_il, std::vector<double>());
+        m_nh.param<std::vector<double>>("p_il", p_il, std::vector<double>());
+        m_nh.param<std::vector<double>>("r_cl", r_cl, std::vector<double>());
+        m_nh.param<std::vector<double>>("p_cl", p_cl, std::vector<double>());
+        m_builder_config.r_il << r_il[0], r_il[1], r_il[2], r_il[3], r_il[4], r_il[5], r_il[6], r_il[7], r_il[8];
+        m_builder_config.p_il << p_il[0], p_il[1], p_il[2];
+        m_builder_config.r_cl << r_cl[0], r_cl[1], r_cl[2], r_cl[3], r_cl[4], r_cl[5], r_cl[6], r_cl[7], r_cl[8];
+        m_builder_config.p_cl << p_cl[0], p_cl[1], p_cl[2];
+        m_builder_config.r_cl = Eigen::Quaterniond(m_builder_config.r_cl).normalized().toRotationMatrix();
     }
 
     void initSubsriber()

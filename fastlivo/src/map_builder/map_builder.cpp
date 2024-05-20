@@ -26,8 +26,16 @@ namespace livo
             m_scan_filter.setLeafSize(m_config.scan_resolution, m_config.scan_resolution, m_config.scan_resolution);
         }
         m_status = Status::IMU_INIT;
-
         m_latest_cloud = nullptr;
+
+        std::shared_ptr<PinholeCamera> camera = std::make_shared<PinholeCamera>(
+            m_config.width,
+            m_config.height,
+            m_config.fx, m_config.fy,
+            m_config.cx, m_config.cy,
+            m_config.d[0], m_config.d[1], m_config.d[2], m_config.d[3], m_config.d[4]);
+
+        m_lidar_selector = std::make_shared<LidarSelector>(m_kf, camera, m_config.patch_size, m_config.grid_size, m_config.selector_scan_resolution, m_config.selector_voxel_size);
     }
 
     void MapBuilder::incrMap()
@@ -176,7 +184,7 @@ namespace livo
         {
             if (m_imu_processor->initialize(package))
                 m_status = Status::MAP_INIT;
-            // std::cout << "IMU INITIALIZED!" << std::endl;
+            std::cout << "IMU INITIALIZED!" << std::endl;
         }
         else if (m_status == Status::MAP_INIT)
         {
@@ -186,7 +194,7 @@ namespace livo
                 m_ikdtree->Build(lidar2World(package.cloud)->points);
                 m_status = Status::MAPPING;
             }
-            // std::cout << "MAP INITIALIZED!" << std::endl;
+            std::cout << "MAP INITIALIZED!" << std::endl;
         }
         else
         {
@@ -206,15 +214,19 @@ namespace livo
                 trimMap();
                 m_kf->update();
                 incrMap();
+
                 m_latest_cloud = lidar2World(package.cloud);
+                cloud_for_visual_update = true;
             }
             else
             {
                 if (m_latest_cloud != nullptr)
                 {
-                    std::cout << "PROCESS IMAGE IESKF!!!" << std::endl;
-                    std::cout << "LATEST CLOUD SIZE: " << m_latest_cloud->size() << std::endl;
-                    std::cout << "IMG WIDTH: " << package.image.cols << " HEIGHT: " << package.image.rows << std::endl;
+                    // std::cout << "PROCESS IMAGE IESKF!!!" << std::endl;
+                    // std::cout << "LATEST CLOUD SIZE: " << m_latest_cloud->size() << std::endl;
+                    // std::cout << "IMG WIDTH: " << package.image.cols << " HEIGHT: " << package.image.rows << std::endl;
+                    m_lidar_selector->process(package.image, m_latest_cloud, cloud_for_visual_update);
+                    cloud_for_visual_update = false;
                 }
             }
         }

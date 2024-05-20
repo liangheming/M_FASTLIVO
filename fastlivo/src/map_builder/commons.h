@@ -1,3 +1,4 @@
+#pragma once
 #include <Eigen/Eigen>
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
@@ -35,6 +36,18 @@ namespace livo
 
         bool esti_li = false;
         bool esti_ci = false;
+
+        double width = 640;
+        double height = 512;
+        double fx = 431.795259219;
+        double fy = 431.550090267;
+        double cx = 310.833037316;
+        double cy =  266.985989326;
+        std::vector<double> d{-0.0944205499243979,0.0946727677776504,-0.00807970960613932,8.07461209775283e-05,0.0};
+        double patch_size = 8;
+        double grid_size = 32;
+        double selector_scan_resolution = 0.2;
+        double selector_voxel_size = 0.5;
     };
 
     struct IMUData

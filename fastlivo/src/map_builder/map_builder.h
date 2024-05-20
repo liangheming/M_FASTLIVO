@@ -3,6 +3,7 @@
 #include "ieskf.h"
 #include "ikd_Tree.h"
 #include "imu_processor.h"
+#include "selector.h"
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/common/transforms.h>
 
@@ -40,7 +41,7 @@ namespace livo
         CloudType::Ptr lidar2Body(CloudType::Ptr inp);
 
         Status &status() { return m_status; }
-        
+
         const kf::State &state() { return m_kf->x(); }
 
     private:
@@ -60,7 +61,8 @@ namespace livo
         CloudType::Ptr m_effect_norm_vec;
         std::vector<PointVec> m_nearest_points;
         pcl::VoxelGrid<PointType> m_scan_filter;
-        
         CloudType::Ptr m_latest_cloud;
+        std::shared_ptr<LidarSelector> m_lidar_selector;
+        bool cloud_for_visual_update = false;
     };
 }

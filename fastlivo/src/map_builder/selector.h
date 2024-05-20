@@ -41,7 +41,10 @@ namespace livo
     {
     public:
         Feature(const Eigen::Vector2d &_px, const Eigen::Vector3d &_fp, const Eigen::Matrix3d &_r_fw, const Eigen::Vector3d _p_fw, double _score, int _level)
-            : px(_px), fp(_fp), r_fw(_r_fw), p_fw(_p_fw), score(_score), level(_level) {}
+            : px(_px), fp(_fp), r_fw(_r_fw), p_fw(_p_fw), score(_score), level(_level)
+        {
+            patches.resize(3);
+        }
 
         Eigen::Matrix3d r_wf() { return r_fw.transpose(); }
 
@@ -54,6 +57,7 @@ namespace livo
         Eigen::Vector3d fp;
         Eigen::Matrix3d r_fw;
         Eigen::Vector3d p_fw;
+        std::vector<cv::Mat> patches;
         float score;
         int level;
     };
@@ -61,11 +65,15 @@ namespace livo
     class Point
     {
     public:
-        Point(const Eigen::Vector3d &pos);
+        Point(const Eigen::Vector3d &_pos);
 
         void addObs(std::shared_ptr<Feature> ftr);
 
         bool getCloseViewObs(const Eigen::Vector3d &cam_pos, std::shared_ptr<Feature> &out, double thresh = 0.5);
+
+        bool getFurthestViewObs(const Eigen::Vector3d &cam_pos, std::shared_ptr<Feature> &out);
+
+        void deleteFeatureRef(std::shared_ptr<Feature> feat);
 
     public:
         Eigen::Vector3d pos;
@@ -92,7 +100,7 @@ namespace livo
                       double scan_res,
                       double voxel_size);
 
-        bool getReferencePoints(cv::Mat gray_img, CloudType::Ptr cloud, std::vector<ReferencePoint> &reference_points);
+        bool getReferencePoints(cv::Mat gray_img, CloudType::Ptr cloud);
 
         Eigen::Vector3d w2f(const Eigen::Vector3d &pw);
 
@@ -111,6 +119,14 @@ namespace livo
         void getPatch(cv::Mat img, const Eigen::Vector2d px, cv::Mat &patch, int level);
 
         Eigen::Matrix2d getWarpMatrixAffine(const Eigen::Vector2d &px_ref, const Eigen::Vector3d &fp_ref, const double depth_ref, const Eigen::Matrix3d &r_cr, const Eigen::Vector3d &t_cr);
+
+        void addPoint(std::shared_ptr<Point> point);
+
+        void addObservations(cv::Mat img);
+
+        int incrVisualMap(cv::Mat img, CloudType::Ptr cloud);
+
+        void process(cv::Mat img, CloudType::Ptr cloud, bool is_new_cloud);
 
     private:
         int m_grid_size;
@@ -133,9 +149,10 @@ namespace livo
 
         std::vector<double> cache_depth;
         std::vector<bool> cache_grid_flag;
-        std::vector<std::shared_ptr<Point>> cache_grid_points;
+        std::vector<Point*> cache_grid_points;
         std::vector<double> cache_grid_dist;
         std::vector<double> cache_grid_cur;
+        std::vector<Eigen::Vector3d> cache_grid_add_points;
         std::vector<ReferencePoint> cache_reference_points;
     };
 
