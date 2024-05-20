@@ -236,7 +236,7 @@ namespace livo
         for (int i = 0; i < total_points; i++)
         {
             ReferencePoint &rp = cache_reference_points[i];
-            std::shared_ptr<Point> p_ptr = rp.point;
+            Point *p_ptr = rp.point;
             Eigen::Vector2d pc = f2c(w2f(p_ptr->pos));
 
             std::shared_ptr<Feature> last_feature = p_ptr->obs.back();
@@ -386,14 +386,14 @@ namespace livo
                     cache_grid_cur[index] = cur_value;
             }
         }
-        /*
+
         std::vector<ReferencePoint>().swap(cache_reference_points);
 
         for (int i = 0; i < m_grid_flat_length; i++)
         {
             if (!cache_grid_flag[i])
                 continue;
-            std::shared_ptr<Point> p = cache_grid_points[i];
+            Point *p = cache_grid_points[i];
             Eigen::Vector3d pc = w2f(p->pos);
             Eigen::Vector2d px = f2c(pc);
             bool depth_continous = false;
@@ -419,9 +419,10 @@ namespace livo
             if (depth_continous)
                 continue;
             std::shared_ptr<Feature> feat;
-
+            // std::cout << "after depth check!" << std::endl;
             if (!p->getCloseViewObs(m_p_wf, feat, 0.5))
                 continue;
+            // std::cout << "after obs check!" << std::endl;
             Eigen::Matrix3d r_cr = m_r_fw * feat->r_wf();
             Eigen::Vector3d p_cr = m_r_fw * feat->p_wf() + m_p_fw;
             Eigen::Matrix2d affine_cr = getWarpMatrixAffine(feat->px, feat->fp, (feat->p_wf() - m_p_wf).norm(), r_cr, p_cr);
@@ -442,15 +443,15 @@ namespace livo
 
             if (sq_dist > 100 * m_patch_n_pixels)
                 continue;
-
-            // ReferencePoint ref_point;
-            // ref_point.error = sq_dist;
-            // ref_point.level = search_level;
-            // ref_point.patch = ref_patch;
-            // ref_point.point = p;
-            // cache_reference_points.push_back(ref_point);
+            // std::cout << "after outlier check!" << std::endl;
+            ReferencePoint ref_point;
+            ref_point.error = sq_dist;
+            ref_point.level = search_level;
+            ref_point.patch = ref_patch;
+            ref_point.point = p;
+            cache_reference_points.push_back(ref_point);
         }
-        */
+        std::cout << "FINDED LOSS PAIR ===================: " << cache_reference_points.size() << std::endl;
 
         return true;
     }

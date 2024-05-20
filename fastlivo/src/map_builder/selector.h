@@ -84,7 +84,7 @@ namespace livo
 
     struct ReferencePoint
     {
-        std::shared_ptr<Point> point;
+        Point* point;
         double error;
         cv::Mat patch;
         int level;
