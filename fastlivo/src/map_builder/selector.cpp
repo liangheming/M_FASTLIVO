@@ -571,7 +571,7 @@ namespace livo
         kf::Vector29d B;
         kf::Matrix18d H_mat;
         kf::Vector18d b_vec;
-        kf::Vector29d delta;
+        kf::Vector29d delta = kf::Vector29d::Zero();
 
         kf::State predict_x = m_kf->x();
 
