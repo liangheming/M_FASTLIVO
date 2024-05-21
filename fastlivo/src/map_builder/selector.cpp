@@ -306,7 +306,7 @@ namespace livo
             if (!cache_grid_flag[i])
                 continue;
             Eigen::Vector3d pw = cache_grid_add_points[i];
-            Eigen::Vector2d pc = f2c(w2f(pw));
+            Eigen::Vector2d pc = m_camera->world2cam(w2f(pw));
             cv::Mat patch0(m_patch_size, m_patch_size, CV_32FC1), patch1(m_patch_size, m_patch_size, CV_32FC1), patch2(m_patch_size, m_patch_size, CV_32FC1);
             getPatch(img, pc, patch0, 0);
             getPatch(img, pc, patch1, 1);
@@ -328,6 +328,7 @@ namespace livo
 
     bool LidarSelector::getReferencePoints(cv::Mat gray_img, CloudType::Ptr cloud)
     {
+        std::vector<ReferencePoint>().swap(cache_reference_points);
         if (m_feat_map.size() <= 0)
             return false;
         resetCache();
@@ -369,7 +370,7 @@ namespace livo
                 Eigen::Vector3d pc = w2f(p->pos);
                 if (pc(2) <= 0)
                     continue;
-                Eigen::Vector2d px = f2c(pc);
+                Eigen::Vector2d px = m_camera->world2cam(pc);
                 if (!m_camera->isInFrame(px.cast<int>(), (m_patch_size_half + 1) * 8))
                     continue;
                 int index = gridIndex(px);
@@ -387,8 +388,6 @@ namespace livo
             }
         }
 
-        std::vector<ReferencePoint>().swap(cache_reference_points);
-
         std::cout << "33333333333333, SELECT REFERENCE POINTS" << std::endl;
         for (int i = 0; i < m_grid_flat_length; i++)
         {
@@ -396,7 +395,7 @@ namespace livo
                 continue;
             Point *p = cache_grid_points[i];
             Eigen::Vector3d pc = w2f(p->pos);
-            Eigen::Vector2d px = f2c(pc);
+            Eigen::Vector2d px = m_camera->world2cam(pc);
             bool depth_continous = false;
             for (int u = -m_patch_size_half; u <= m_patch_size_half; u++)
             {
@@ -434,9 +433,12 @@ namespace livo
                 continue;
             }
             cv::Mat ref_patch(m_patch_size, m_patch_size, CV_32FC1);
+            // 参考帧上的 patch
             wrapAffine(affine_rc, feat->px, feat->frame, 0, ref_patch);
+
             cv::Mat cur_patch(m_patch_size, m_patch_size, CV_32FC1);
-            getPatch(gray_img, px, cur_patch, search_level);
+            // 当前帧上 patch
+            getPatch(gray_img, px, cur_patch, 0);
 
             double sq_dist = cv::sum((ref_patch - cur_patch) * (ref_patch - cur_patch))[0];
 
@@ -468,11 +470,9 @@ namespace livo
 
         updateFrameState();
 
-        std::cout << "GET REFERENCE POINTS" << std::endl;
-
         getReferencePoints(m_img_gray, cloud);
 
-        std::cout << "INCRVISUALMAP" << std::endl;
+        updateState();
 
         if (is_new_cloud)
         {
@@ -481,13 +481,10 @@ namespace livo
             std::cout << "ADD POINT COUNT: " << add_count << std::endl;
         }
 
-        std::cout << "FUNCTION FINISHED!" << std::endl;
-        // 找到匹配特征
-
-        // 更新状态
-
         updateFrameState();
 
+
+        addObservations(m_img_gray);
         // 如果是新的地图点，需要更新视觉地图
 
         // 根据新的状态更新观测
@@ -546,4 +543,115 @@ namespace livo
         }
         return ret;
     }
+
+    void LidarSelector::updateState()
+    {
+        if (cache_grid_points.size() == 0)
+            return;
+        updateOneLevel();
+    }
+
+    void LidarSelector::dpi(Eigen::Vector3d p, Eigen::Matrix<double, 2, 3> &J)
+    {
+        double z_inv = 1.0 / p(2);
+        double z_inv_2 = z_inv * z_inv;
+        J(0, 0) = m_camera->fx() * z_inv;
+        J(0, 1) = 0.0;
+        J(0, 2) = -m_camera->fx() * p(0) * z_inv_2;
+        J(1, 0) = 0.0;
+        J(1, 1) = m_camera->fy() * z_inv;
+        J(1, 2) = -m_camera->fy() * p(1) * z_inv_2;
+    }
+
+    void LidarSelector::updateOneLevel()
+    {
+
+        Eigen::Matrix<double, 1, 18> J;
+        kf::Matrix29d H;
+        kf::Vector29d B;
+        kf::Matrix18d H_mat;
+        kf::Vector18d b_vec;
+        kf::Vector29d delta;
+
+        kf::State predict_x = m_kf->x();
+
+        for (int i = 0; i < 5; i++)
+        {
+            H_mat.setZero();
+            b_vec.setZero();
+            for (ReferencePoint &rfp : cache_reference_points)
+            {
+                Point *p = rfp.point;
+                int scale = (1 << rfp.level);
+                Eigen::Vector3d pw = p->pos;
+                updateFrameState();
+                Eigen::Vector3d pf = w2f(pw);
+                Eigen::Vector2d pc = m_camera->world2cam(pf);
+
+                const double u_ref = pc[0];
+                const double v_ref = pc[1];
+                const int u_ref_i = floorf(pc[0] / scale) * scale;
+                const int v_ref_i = floorf(pc[1] / scale) * scale;
+                const double subpix_u_ref = (u_ref - u_ref_i) / scale; // 7/8
+                const double subpix_v_ref = (v_ref - v_ref_i) / scale; // 7/8
+                const double w_ref_tl = (1.0 - subpix_u_ref) * (1.0 - subpix_v_ref);
+                const double w_ref_tr = subpix_u_ref * (1.0 - subpix_v_ref);
+                const double w_ref_bl = (1.0 - subpix_u_ref) * subpix_v_ref;
+                const double w_ref_br = subpix_u_ref * subpix_v_ref;
+                Eigen::Matrix<double, 2, 3> dcdp;
+                dpi(pf, dcdp);
+                Eigen::Matrix<double, 1, 2> drdc;
+
+                for (int y = 0; y < m_patch_size; y++)
+                {
+                    for (int x = 0; x < m_patch_size; x++)
+                    {
+                        J.setZero();
+                        Eigen::Vector2i px_patch(x - m_patch_size_half, y - m_patch_size_half);
+                        px_patch *= scale;
+                        int anchor_cx = u_ref_i + px_patch(0), anchor_cy = v_ref_i + px_patch(1);
+                        int anchor_lx = anchor_cx - 1, anchor_ly = anchor_cy;
+                        int anchor_rx = anchor_cx + 1, anchor_ry = anchor_cy;
+                        int anchor_tx = anchor_cx, anchor_ty = anchor_cy - 1;
+                        int anchor_bx = anchor_cx, anchor_by = anchor_cy + 1;
+                        double l = w_ref_tl * m_img_gray.ptr<uint8_t>(anchor_ly)[anchor_lx] + w_ref_tr * m_img_gray.ptr<uint8_t>(anchor_ly)[anchor_lx + 1] + w_ref_bl * m_img_gray.ptr<uint8_t>(anchor_ly + 1)[anchor_lx] + w_ref_br * m_img_gray.ptr<uint8_t>(anchor_ly + 1)[anchor_lx + 1];
+                        double r = w_ref_tl * m_img_gray.ptr<uint8_t>(anchor_ry)[anchor_rx] + w_ref_tr * m_img_gray.ptr<uint8_t>(anchor_ry)[anchor_rx + 1] + w_ref_bl * m_img_gray.ptr<uint8_t>(anchor_ry + 1)[anchor_rx] + w_ref_br * m_img_gray.ptr<uint8_t>(anchor_ry + 1)[anchor_rx + 1];
+                        double t = w_ref_tl * m_img_gray.ptr<uint8_t>(anchor_ty)[anchor_tx] + w_ref_tr * m_img_gray.ptr<uint8_t>(anchor_ty)[anchor_tx + 1] + w_ref_bl * m_img_gray.ptr<uint8_t>(anchor_ty + 1)[anchor_tx] + w_ref_br * m_img_gray.ptr<uint8_t>(anchor_ty + 1)[anchor_tx + 1];
+                        double b = w_ref_tl * m_img_gray.ptr<uint8_t>(anchor_by)[anchor_bx] + w_ref_tr * m_img_gray.ptr<uint8_t>(anchor_by)[anchor_bx + 1] + w_ref_bl * m_img_gray.ptr<uint8_t>(anchor_by + 1)[anchor_bx] + w_ref_br * m_img_gray.ptr<uint8_t>(anchor_by + 1)[anchor_bx + 1];
+                        double c = w_ref_tl * m_img_gray.ptr<uint8_t>(anchor_cy)[anchor_cx] + w_ref_tr * m_img_gray.ptr<uint8_t>(anchor_cy)[anchor_cx + 1] + w_ref_bl * m_img_gray.ptr<uint8_t>(anchor_cy + 1)[anchor_cx] + w_ref_br * m_img_gray.ptr<uint8_t>(anchor_cy + 1)[anchor_cx + 1];
+                        drdc << 0.5 * (r - l), 0.5 * (b - t);
+                        double res = c - rfp.patch.ptr<float>(y)[x];
+                        J.block<1, 3>(0, 0) = -drdc * (1.0 / scale) * dcdp * m_kf->x().r_cl * m_kf->x().r_il.transpose() * m_kf->x().rot.transpose();
+                        J.block<1, 3>(0, 3) = drdc * (1.0 / scale) * dcdp * m_kf->x().r_cl * m_kf->x().r_il.transpose() * Sophus::SO3d::hat(m_kf->x().rot.transpose() * (pw - m_kf->x().pos));
+                        H_mat += J.transpose() * 100 * J;
+                        b_vec += J.transpose() * 100 * res;
+                    }
+                }
+            }
+            H.setZero();
+            B.setZero();
+            delta = m_kf->x() - predict_x;
+            kf::Matrix29d PJ = kf::Matrix29d::Identity();
+            PJ.block<3, 3>(3, 3) = kf::rightJacobian(delta.segment<3>(3));
+            PJ.block<3, 3>(6, 6) = kf::rightJacobian(delta.segment<3>(6));
+            PJ.block<3, 3>(12, 12) = kf::rightJacobian(delta.segment<3>(12));
+            PJ.block<2, 2>(27, 27) = m_kf->x().getNx() * predict_x.getMx(delta.segment<2>(27));
+            B += (PJ.transpose() * m_kf->P().inverse() * delta);
+            H += (PJ.transpose() * m_kf->P().inverse() * PJ);
+            H.block<18, 18>(0, 0) += H_mat;
+            B.block<18, 1>(0, 0) += b_vec;
+            delta = -H.inverse() * B;
+            m_kf->x() += delta;
+
+            if (delta.maxCoeff() < 0.001)
+                break;
+        }
+        kf::Matrix29d L = kf::Matrix29d::Identity();
+        L.block<3, 3>(3, 3) = kf::rightJacobian(delta.segment<3>(3));
+        L.block<3, 3>(6, 6) = kf::rightJacobian(delta.segment<3>(6));
+        L.block<3, 3>(12, 12) = kf::rightJacobian(delta.segment<3>(12));
+        L.block<2, 2>(27, 27) = m_kf->x().getNx() * predict_x.getMx(delta.segment<2>(27));
+        m_kf->P() = L * H.inverse() * L.transpose();
+    }
+
 } // namespace livo

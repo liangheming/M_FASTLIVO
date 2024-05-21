@@ -132,6 +132,12 @@ namespace livo
 
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr getCurentCloudRGB();
 
+        void updateState();
+
+        void updateOneLevel();
+
+        void dpi(Eigen::Vector3d p, Eigen::Matrix<double, 2, 3> &J);
+
     private:
         int m_grid_size;
         int m_patch_size;
