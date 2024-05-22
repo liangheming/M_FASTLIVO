@@ -623,8 +623,8 @@ namespace livo
                         double res = c - rfp.patch.ptr<float>(y)[x];
                         J.block<1, 3>(0, 0) = -drdc * (1.0 / scale) * dcdp * m_kf->x().r_cl * m_kf->x().r_il.transpose() * m_kf->x().rot.transpose();
                         J.block<1, 3>(0, 3) = drdc * (1.0 / scale) * dcdp * m_kf->x().r_cl * m_kf->x().r_il.transpose() * Sophus::SO3d::hat(m_kf->x().rot.transpose() * (pw - m_kf->x().pos));
-                        H_mat += J.transpose() * 100 * J;
-                        b_vec += J.transpose() * 100 * res;
+                        H_mat += J.transpose() * 0.01 * J;
+                        b_vec += J.transpose() * 0.01 * res;
                     }
                 }
             }
