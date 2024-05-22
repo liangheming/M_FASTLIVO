@@ -50,16 +50,29 @@ set(SRC_LIST src/map_builder/commons.cpp
              src/map_builder/ieskf.cpp
              src/map_builder/ikd_Tree.cpp
              src/map_builder/imu_processor.cpp
+             src/map_builder/lidar_processor.cpp
              src/map_builder/map_builder.cpp
-             src/map_builder/camera.cpp
-             src/map_builder/selector.cpp
              src/utils.cpp
              )
-add_executable(lvio_node src/lvio_node.cpp ${SRC_LIST})
-target_link_libraries(lvio_node
+# add_executable(lvio_node src/lvio_node.cpp ${SRC_LIST})
+# target_link_libraries(lvio_node
+#   ${catkin_LIBRARIES}
+#   ${PCL_LIBRARIES}
+#   ${OpenCV_LIBRARIES}
+# )
+# add_executable(test_ieskf src/test_ieskf.cpp src/map_builder/commons.cpp src/map_builder/ieskf.cpp)
+# target_link_libraries(test_ieskf
+#   ${catkin_LIBRARIES}
+#   ${PCL_LIBRARIES}
+#   ${OpenCV_LIBRARIES}
+# )
+
+add_executable(lio_node src/lio_node.cpp ${SRC_LIST})
+target_link_libraries(lio_node
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
   ${OpenCV_LIBRARIES}
 )
+
 
 

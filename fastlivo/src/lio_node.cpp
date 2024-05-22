@@ -2,11 +2,10 @@
 #include <queue>
 #include <sensor_msgs/Imu.h>
 #include <tf2_ros/transform_broadcaster.h>
-
 #include "utils.h"
 #include "map_builder/map_builder.h"
 
-struct Config
+struct NodeConfig
 {
     std::string imu_topic = "/livox/imu";
     std::string lidar_topic = "/livox/lidar";
@@ -19,8 +18,8 @@ struct DataGroup
     std::mutex imu_mutex;
     std::mutex lidar_mutex;
     double last_imu_time;
-    std::deque<livo::IMUData> imu_buffer;
-    std::deque<std::pair<double, livo::CloudType::Ptr>> lidar_buffer;
+    std::deque<IMUData> imu_buffer;
+    std::deque<std::pair<double, CloudType::Ptr>> lidar_buffer;
     double last_lidar_time;
 };
 
@@ -32,7 +31,9 @@ public:
         loadCofig();
         initSubsriber();
         initPublisher();
-        m_builder = std::make_shared<livo::MapBuilder>(m_builder_config);
+
+        m_kf = std::make_shared<IESKF>();
+        m_builder = std::make_shared<MapBuilder>(m_builder_config, m_kf);
         main_loop = m_nh.createTimer(ros::Duration(0.05), &LIVONode::mainCB, this);
     }
     void loadCofig()
@@ -68,7 +69,7 @@ public:
     // void lidarCB(const livox_ros_driver2::CustomMsg::ConstPtr msg)
     void lidarCB(const livox_ros_driver::CustomMsg::ConstPtr msg)
     {
-        livo::CloudType::Ptr cloud(new livo::CloudType);
+        CloudType::Ptr cloud(new CloudType);
         livox2pcl(msg, cloud, 3, 0.5);
         std::lock_guard<std::mutex> lock(m_group_data.lidar_mutex);
         double timestamp = msg->header.stamp.toSec();
@@ -88,7 +89,7 @@ public:
         if (!m_group_data.lidar_pushed)
         {
             m_sync_pack.cloud = m_group_data.lidar_buffer.front().second;
-            std::sort(m_sync_pack.cloud->points.begin(), m_sync_pack.cloud->points.end(), [](livo::PointType &p1, livo::PointType &p2)
+            std::sort(m_sync_pack.cloud->points.begin(), m_sync_pack.cloud->points.end(), [](PointType &p1, PointType &p2)
                       { return p1.curvature < p2.curvature; });
             m_sync_pack.cloud_start_time = m_group_data.lidar_buffer.front().first;
             m_sync_pack.cloud_end_time = m_sync_pack.cloud_start_time + m_sync_pack.cloud->points.back().curvature / double(1000.0);
@@ -109,10 +110,11 @@ public:
         }
         m_group_data.lidar_buffer.pop_front();
         m_group_data.lidar_pushed = false;
+        m_sync_pack.lidar_end = true;
         return true;
     }
 
-    void publishCloud(ros::Publisher &cloud_pub, livo::CloudType::Ptr cloud, std::string &frame_id, double &sec)
+    void publishCloud(ros::Publisher &cloud_pub, CloudType::Ptr cloud, std::string &frame_id, double &sec)
     {
         if (cloud_pub.getNumSubscribers() < 1)
             return;
@@ -125,11 +127,18 @@ public:
 
         m_builder->process(m_sync_pack);
 
-        if (m_builder->status() != livo::Status::MAPPING)
+        if (m_builder->status() != BuilderStatus::MAPPING)
             return;
-        m_br.sendTransform(eigen2Transform(m_builder->state().rot, m_builder->state().pos, m_node_config.map_frame, m_node_config.body_frame, m_sync_pack.cloud_end_time));
-        publishCloud(m_body_cloud_pub, m_builder->lidar2Body(m_sync_pack.cloud), m_node_config.body_frame, m_sync_pack.cloud_end_time);
-        publishCloud(m_world_cloud_pub, m_builder->lidar2World(m_sync_pack.cloud), m_node_config.map_frame, m_sync_pack.cloud_end_time);
+        if (m_sync_pack.lidar_end)
+        {
+            m_br.sendTransform(eigen2Transform(m_kf->x().r_wi, m_kf->x().t_wi, m_node_config.map_frame, m_node_config.body_frame, m_sync_pack.cloud_end_time));
+            CloudType::Ptr cloud_body = LidarProcessor::transformCloud(m_sync_pack.cloud, m_kf->x().r_il, m_kf->x().t_il);
+            publishCloud(m_body_cloud_pub, cloud_body, m_node_config.body_frame, m_sync_pack.cloud_end_time);
+            M3D r_wl = m_kf->x().r_wi * m_kf->x().r_il;
+            V3D t_wl = m_kf->x().r_wi * m_kf->x().t_il + m_kf->x().t_wi;
+            CloudType::Ptr cloud_world = LidarProcessor::transformCloud(m_sync_pack.cloud, r_wl, t_wl);
+            publishCloud(m_world_cloud_pub, cloud_world, m_node_config.map_frame, m_sync_pack.cloud_end_time);
+        }
     }
 
 private:
@@ -141,11 +150,13 @@ private:
     ros::Publisher m_world_cloud_pub;
 
     ros::Timer main_loop;
+
+    std::shared_ptr<IESKF> m_kf;
     DataGroup m_group_data;
-    Config m_node_config;
-    livo::Config m_builder_config;
-    livo::SyncPackage m_sync_pack;
-    std::shared_ptr<livo::MapBuilder> m_builder;
+    NodeConfig m_node_config;
+    Config m_builder_config;
+    SyncPackage m_sync_pack;
+    std::shared_ptr<MapBuilder> m_builder;
     tf2_ros::TransformBroadcaster m_br;
 };
 

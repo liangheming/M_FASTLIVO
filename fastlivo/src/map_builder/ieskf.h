@@ -1,131 +1,95 @@
 #pragma once
-#include <iostream>
-#include <Eigen/Eigen>
+#include "commons.h"
 #include <sophus/so3.hpp>
-namespace kf
+
+const double GRAVITY = 9.81;
+using V18D = Eigen::Matrix<double, 18, 1>;
+using V27D = Eigen::Matrix<double, 27, 1>;
+using M12D = Eigen::Matrix<double, 12, 12>;
+using M18D = Eigen::Matrix<double,18,18>;
+using M27D = Eigen::Matrix<double, 27, 27>;
+using M27x12D = Eigen::Matrix<double, 27, 12>;
+
+M3D rightJacobian(const V3D &inp);
+
+struct SharedState
 {
-    const double GRAVITY = 9.81;
-    using Vector21d = Eigen::Matrix<double, 21, 1>;
-    using Vector12d = Eigen::Matrix<double, 12, 1>;
-    using Matrix21d = Eigen::Matrix<double, 21, 21>;
-    using Matrix12d = Eigen::Matrix<double, 12, 12>;
-    using Matrix18d = Eigen::Matrix<double, 18, 18>;
-    using Vector18d = Eigen::Matrix<double, 18, 1>;
-    using Matrix21x12d = Eigen::Matrix<double, 21, 12>;
-    using Matrix23x12d = Eigen::Matrix<double, 23, 12>;
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    M18D H;
+    V18D b;
+    double res = 1e10;
+    bool valid = false;
+    size_t iter_num = 0;
+};
 
-    using Matrix29x12d = Eigen::Matrix<double, 29, 12>;
+struct State
+{
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    M3D r_wi = M3D::Identity();
+    V3D t_wi = V3D::Zero();
+    M3D r_il = M3D::Identity();
+    V3D t_il = V3D::Zero();
+    M3D r_cl = M3D::Identity();
+    V3D t_cl = V3D::Zero();
+    V3D v = V3D::Zero();
+    V3D bg = V3D::Zero();
+    V3D ba = V3D::Zero();
+    V3D g = V3D(0.0, 0.0, -GRAVITY);
 
-    using Matrix23d = Eigen::Matrix<double, 23, 23>;
-    using Vector23d = Eigen::Matrix<double, 23, 1>;
-    using Vector24d = Eigen::Matrix<double, 24, 1>;
-    using Matrix3x2d = Eigen::Matrix<double, 3, 2>;
-    using Matrix2x3d = Eigen::Matrix<double, 2, 3>;
+    void initGWithDir(const V3D &gravity_dir) { g = gravity_dir.normalized() * GRAVITY; }
+    
+    void initG(const V3D &gravity) { g = gravity; }
 
-    using Matrix29d = Eigen::Matrix<double, 29, 29>;
-    using Vector29d = Eigen::Matrix<double, 29, 1>;
-    using Vector30d = Eigen::Matrix<double, 30, 1>;
+    void operator+=(const V27D &delta);
 
-    Eigen::Matrix3d rightJacobian(const Eigen::Vector3d &inp);
+    V27D operator-(const State &other);
 
-    struct SharedState
-    {
-    public:
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-        Matrix18d H;
-        Vector18d b;
-        size_t iter_num = 0;
-        bool is_valid = false;
-    };
+    friend std::ostream &operator<<(std::ostream &os, const State &state);
 
-    struct State
-    {
-    public:
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-        Eigen::Vector3d pos = Eigen::Vector3d::Zero();
-        Eigen::Matrix3d rot = Eigen::Matrix3d::Identity();
-        Eigen::Matrix3d r_il = Eigen::Matrix3d::Identity();
-        Eigen::Vector3d p_il = Eigen::Vector3d::Zero();
-        Eigen::Matrix3d r_cl = Eigen::Matrix3d::Identity();
-        Eigen::Vector3d p_cl = Eigen::Vector3d::Zero();
-        Eigen::Vector3d vel = Eigen::Vector3d::Zero();
-        Eigen::Vector3d bg = Eigen::Vector3d::Zero();
-        Eigen::Vector3d ba = Eigen::Vector3d::Zero();
-        Eigen::Vector3d g = Eigen::Vector3d(0.0, 0.0, -GRAVITY);
+};
 
-        void initG(const Eigen::Vector3d &gravity_dir)
-        {
-            g = gravity_dir.normalized() * GRAVITY;
-        }
+struct Input
+{
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    V3D acc;
+    V3D gyro;
+    Input() = default;
+    Input(V3D &a, V3D &g) : acc(a), gyro(g) {}
+    Input(double a1, double a2, double a3, double g1, double g2, double g3) : acc(a1, a2, a3), gyro(g1, g2, g3) {}
+};
 
-        // void operator+=(const Vector23d &delta);
+using measure_func = std::function<void(State &, SharedState &)>;
 
-        // void operator+=(const Vector24d &delta);
+class IESKF
+{
+public:
+    IESKF();
 
-        void operator+=(const Vector29d &delta);
+    IESKF(size_t max_iter) : m_max_iter(max_iter) {}
 
-        void operator+=(const Vector30d &delta);
+    State &x() { return m_x; }
 
-        // Vector23d operator-(const State &other);
+    void change_x(const State &x) { m_x = x; }
 
-        Vector29d operator-(const State &other);
+    M27D &P() { return m_P; }
 
-        Matrix3x2d getBx() const;
+    void set_share_function(measure_func func) { m_func = func; }
 
-        Matrix3x2d getMx() const;
+    void change_P(const M27D &P) { m_P = P; }
 
-        Matrix3x2d getMx(const Eigen::Vector2d &res) const;
+    void predict(const Input &inp, double dt, const M12D &Q);
+    
+    void update();
 
-        Matrix2x3d getNx() const;
-        
-        friend std::ostream& operator<<(std::ostream& os, const State& state);
-
-    };
-    struct Input
-    {
-    public:
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-        Eigen::Vector3d acc;
-        Eigen::Vector3d gyro;
-        Input() = default;
-        Input(Eigen::Vector3d &a, Eigen::Vector3d &g) : acc(a), gyro(g) {}
-        Input(double a1, double a2, double a3, double g1, double g2, double g3) : acc(a1, a2, a3), gyro(g1, g2, g3) {}
-    };
-
-    using measure_func = std::function<void(State &, SharedState &)>;
-
-    class IESKF
-    {
-    public:
-        IESKF();
-
-        IESKF(size_t max_iter) : max_iter_(max_iter) {}
-
-        void setMaxIter(int max_iter) { max_iter_ = max_iter; }
-
-        State &x() { return x_; }
-
-        void change_x(State &x) { x_ = x; }
-
-        Matrix29d &P() { return P_; }
-
-        void set_share_function(measure_func func) { func_ = func; }
-
-        void change_P(Matrix29d &P) { P_ = P; }
-
-        void predict(const Input &inp, double dt, const Matrix12d &Q);
-
-        void update();
-
-    private:
-        size_t max_iter_ = 5;
-        double eps_ = 0.001;
-        State x_;
-        Matrix29d P_;
-        measure_func func_;
-        Matrix29d H_;
-        Vector29d b_;
-        Matrix29d F_;
-        Matrix29x12d G_;
-    };
-} // namespace kf
+private:
+    size_t m_max_iter = 5;
+    double m_eps = 0.001;
+    State m_x;
+    M27D m_P;
+    measure_func m_func;
+    M27D m_F;
+    M27x12D m_G;
+};

@@ -2,28 +2,24 @@
 #include "ieskf.h"
 #include "commons.h"
 
-namespace livo
+class IMUProcessor
 {
-    class IMUProcessor
-    {
-    public:
-        IMUProcessor(Config &config, std::shared_ptr<kf::IESKF> kf);
+public:
+    IMUProcessor(Config &config, std::shared_ptr<IESKF> kf);
 
-        bool initialize(SyncPackage& package);
+    bool initialize(SyncPackage &package);
 
-        void undistort(SyncPackage &sync);
+    void undistort(SyncPackage &package);
 
-    private:
-        Config m_config;
-        std::shared_ptr<kf::IESKF> m_kf;
-        std::vector<IMUData> m_imu_cache;
-        IMUData m_last_imu;
-        bool push_head_pose;
-        std::vector<Pose> m_imu_poses_cache;
-
-        double m_last_propagate_end_time;
-        Eigen::Vector3d m_last_acc;
-        Eigen::Vector3d m_last_gyro;
-        kf::Matrix12d m_Q;
-    };
-} // namespace livo
+private:
+    Config m_config;
+    bool m_push;
+    double m_last_propagate_end_time;
+    std::shared_ptr<IESKF> m_kf;
+    IMUData m_last_imu;
+    Vec<IMUData> m_imu_cache;
+    Vec<Pose> m_poses_cache;
+    V3D m_last_acc;
+    V3D m_last_gyro;
+    M12D m_Q;
+};
