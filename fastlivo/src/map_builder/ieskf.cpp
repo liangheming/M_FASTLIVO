@@ -5,6 +5,11 @@ M3D rightJacobian(const V3D &inp)
     return Sophus::SO3d::leftJacobian(inp).transpose();
 }
 
+M3D jrInv(const V3D &inp)
+{
+    return Sophus::SO3d::leftJacobianInverse(inp).transpose();
+}
+
 void State::operator+=(const V27D &delta)
 {
     r_wi *= Sophus::SO3d::exp(delta.segment<3>(0)).matrix();
@@ -87,9 +92,10 @@ void IESKF::update()
         b.setZero();
         delta = m_x - predict_x;
         M27D J = M27D::Identity();
-        J.block<3, 3>(0, 0) = rightJacobian(delta.segment<3>(0));
-        J.block<3, 3>(6, 6) = rightJacobian(delta.segment<3>(6));
-        J.block<3, 3>(12, 12) = rightJacobian(delta.segment<3>(12));
+       
+        J.block<3, 3>(0, 0) = jrInv(delta.segment<3>(0));
+        J.block<3, 3>(6, 6) = jrInv(delta.segment<3>(6));
+        J.block<3, 3>(12, 12) = jrInv(delta.segment<3>(12));
         b += (J.transpose() * m_P.inverse() * delta);
         H += (J.transpose() * m_P.inverse() * J);
         H.block<18, 18>(0, 0) += shared_data.H;
@@ -101,8 +107,8 @@ void IESKF::update()
             break;
     }
     M27D L = M27D::Identity();
-    L.block<3, 3>(0, 0) = rightJacobian(delta.segment<3>(0));
-    L.block<3, 3>(6, 6) = rightJacobian(delta.segment<3>(6));
-    L.block<3, 3>(12, 12) = rightJacobian(delta.segment<3>(12));
+    L.block<3, 3>(0, 0) = jrInv(delta.segment<3>(0));
+    L.block<3, 3>(6, 6) = jrInv(delta.segment<3>(6));
+    L.block<3, 3>(12, 12) = jrInv(delta.segment<3>(12));
     m_P = L * H.inverse() * L.transpose();
 }

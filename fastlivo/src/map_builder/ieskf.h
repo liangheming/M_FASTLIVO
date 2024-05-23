@@ -6,11 +6,13 @@ const double GRAVITY = 9.81;
 using V18D = Eigen::Matrix<double, 18, 1>;
 using V27D = Eigen::Matrix<double, 27, 1>;
 using M12D = Eigen::Matrix<double, 12, 12>;
-using M18D = Eigen::Matrix<double,18,18>;
+using M18D = Eigen::Matrix<double, 18, 18>;
 using M27D = Eigen::Matrix<double, 27, 27>;
 using M27x12D = Eigen::Matrix<double, 27, 12>;
 
 M3D rightJacobian(const V3D &inp);
+
+M3D jrInv(const V3D &inp);
 
 struct SharedState
 {
@@ -39,7 +41,7 @@ public:
     V3D g = V3D(0.0, 0.0, -GRAVITY);
 
     void initGWithDir(const V3D &gravity_dir) { g = gravity_dir.normalized() * GRAVITY; }
-    
+
     void initG(const V3D &gravity) { g = gravity; }
 
     void operator+=(const V27D &delta);
@@ -47,7 +49,6 @@ public:
     V27D operator-(const State &other);
 
     friend std::ostream &operator<<(std::ostream &os, const State &state);
-
 };
 
 struct Input
@@ -81,7 +82,7 @@ public:
     void change_P(const M27D &P) { m_P = P; }
 
     void predict(const Input &inp, double dt, const M12D &Q);
-    
+
     void update();
 
 private:
