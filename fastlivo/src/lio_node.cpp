@@ -36,14 +36,17 @@ public:
         m_builder = std::make_shared<MapBuilder>(m_builder_config, m_kf);
         main_loop = m_nh.createTimer(ros::Duration(0.05), &LIVONode::mainCB, this);
     }
+    
     void loadCofig()
     {
     }
+    
     void initSubsriber()
     {
         m_lidar_sub = m_nh.subscribe(m_node_config.lidar_topic, 10000, &LIVONode::lidarCB, this);
         m_imu_sub = m_nh.subscribe(m_node_config.imu_topic, 10000, &LIVONode::imuCB, this);
     }
+    
     void initPublisher()
     {
         m_body_cloud_pub = m_nh.advertise<sensor_msgs::PointCloud2>("body_cloud", 1000);
@@ -81,6 +84,7 @@ public:
         m_group_data.last_lidar_time = timestamp;
         m_group_data.lidar_buffer.emplace_back(timestamp, cloud);
     }
+    
     bool syncPackage()
     {
         if (m_group_data.imu_buffer.empty() || m_group_data.lidar_buffer.empty())
@@ -120,6 +124,7 @@ public:
             return;
         cloud_pub.publish(pcl2msg(cloud, frame_id, sec));
     }
+    
     void mainCB(const ros::TimerEvent &e)
     {
         if (!syncPackage())

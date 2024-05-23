@@ -4,7 +4,9 @@
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
 
+using M2D = Eigen::Matrix2d;
 using M3D = Eigen::Matrix3d;
+using V2D = Eigen::Vector2d;
 using V3D = Eigen::Vector3d;
 using V4D = Eigen::Vector4d;
 
