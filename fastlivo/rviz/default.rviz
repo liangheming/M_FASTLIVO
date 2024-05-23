@@ -74,7 +74,7 @@ Visualization Manager:
       Size (Pixels): 1
       Size (m): 0.009999999776482582
       Style: Points
-      Topic: /lio_node/body_cloud
+      Topic: /lvio_node/body_cloud
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -102,7 +102,7 @@ Visualization Manager:
       Size (Pixels): 1
       Size (m): 0.009999999776482582
       Style: Points
-      Topic: /lio_node/world_cloud
+      Topic: /lvio_node/world_cloud
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -181,7 +181,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 133.95248413085938
+      Distance: 167.12216186523438
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
