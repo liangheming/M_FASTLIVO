@@ -172,11 +172,14 @@ Eigen::Vector3f CVUtils::interpolateMat_color(const cv::Mat &mat, float u, float
     return wtl * vtl + wtr * vtr + wbl * vbl + wbr * vbr;
 }
 
-bool CVUtils::getPatch(cv::Mat img, const V2D px, cv::Mat &patch, int half_path, int level)
+bool CVUtils::getPatch(cv::Mat img, const V2D px, cv::Mat &patch, int half_patch, int level)
 {
 
     int height = img.rows;
     int width = img.cols;
+    assert(img.type() == CV_8U);
+    asset(patch.type() == CV_32F);
+    asset(patch.cols == 2 * half_patch + 1 && patch.rows == half_patch + 1);
     const float u_ref = px[0];
     const float v_ref = px[1];
     const int scale = (1 << level);
@@ -189,6 +192,22 @@ bool CVUtils::getPatch(cv::Mat img, const V2D px, cv::Mat &patch, int half_path,
     const float w_tr = subpix_u_ref * (1.0 - subpix_v_ref);
     const float w_bl = (1.0 - subpix_u_ref) * subpix_v_ref;
     const float w_br = subpix_u_ref * subpix_v_ref;
-    
 
+    if (u_ref_i - half_patch < 0 || u_ref_i + half_patch >= width || v_ref_i - half_patch < 0 || v_ref_i + half_patch >= height)
+        return false;
+
+    for (int y = 0; y <= half_patch * 2; y++)
+    {
+        for (int x = 0; x <= half_patch * 2; x++)
+        {
+            V2D px_patch(x - half_patch, y - half_patch);
+            px_patch *= (1 << level);
+            int tl_x = u_ref_i + px_patch(0), tl_y = v_ref_i + px_patch(1);
+            uint8_t tl = img.ptr<uint8_t>(tl_y)[tl_x];
+            uint8_t tr = img.ptr<uint8_t>(tl_y)[tl_x + 1];
+            uint8_t bl = img.ptr<uint8_t>(tl_y + 1)[tl_x];
+            uint8_t br = img.ptr<uint8_t>(tl_y + 1)[tl_x + 1];
+            patch.ptr<float>(y)[x] = w_tl * tl + w_tr * tr + w_bl * bl + w_br * br;
+        }
+    }
 }
