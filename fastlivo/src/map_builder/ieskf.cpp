@@ -111,4 +111,5 @@ void IESKF::update()
     L.block<3, 3>(6, 6) = jrInv(delta.segment<3>(6));
     L.block<3, 3>(12, 12) = jrInv(delta.segment<3>(12));
     m_P = L * H.inverse() * L.transpose();
+    // m_P = L.transpose() * H.inverse() * L;
 }
