@@ -4,10 +4,12 @@
 class CVUtils
 {
     static float interpolateMat_8u(const cv::Mat &mat, float u, float v);
-    
+
     static float shiTomasiScore(const cv::Mat &img, int u, int v);
-    
+
     static Eigen::Vector3f interpolateMat_color(const cv::Mat &mat, float u, float v);
+
+    bool getPatch(cv::Mat img, const V2D px, cv::Mat &patch, int half_path, int level = 0);
 };
 
 class PinholeCamera

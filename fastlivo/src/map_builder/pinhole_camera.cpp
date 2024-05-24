@@ -171,3 +171,24 @@ Eigen::Vector3f CVUtils::interpolateMat_color(const cv::Mat &mat, float u, float
 
     return wtl * vtl + wtr * vtr + wbl * vbl + wbr * vbr;
 }
+
+bool CVUtils::getPatch(cv::Mat img, const V2D px, cv::Mat &patch, int half_path, int level)
+{
+
+    int height = img.rows;
+    int width = img.cols;
+    const float u_ref = px[0];
+    const float v_ref = px[1];
+    const int scale = (1 << level);
+    const int u_ref_i = floorf(px[0] / scale) * scale;
+    const int v_ref_i = floorf(px[1] / scale) * scale;
+    const float subpix_u_ref = (u_ref - u_ref_i) / scale;
+    const float subpix_v_ref = (v_ref - v_ref_i) / scale;
+
+    const float w_tl = (1.0 - subpix_u_ref) * (1.0 - subpix_v_ref);
+    const float w_tr = subpix_u_ref * (1.0 - subpix_v_ref);
+    const float w_bl = (1.0 - subpix_u_ref) * subpix_v_ref;
+    const float w_br = subpix_u_ref * subpix_v_ref;
+    
+
+}

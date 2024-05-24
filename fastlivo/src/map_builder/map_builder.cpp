@@ -4,6 +4,7 @@ MapBuilder::MapBuilder(Config &config, std::shared_ptr<IESKF> kf) : m_config(con
 {
     m_imu_processor = std::make_shared<IMUProcessor>(config, kf);
     m_lidar_processor = std::make_shared<LidarProcessor>(config, kf);
+    m_lastest_cloud = nullptr;
 }
 
 void MapBuilder::process(SyncPackage &package)
@@ -36,11 +37,16 @@ void MapBuilder::process(SyncPackage &package)
     if (package.lidar_end)
     {
         m_lidar_processor->process(package);
-        // std::cout << m_kf->x() << std::endl;
-        std::cout << "[LIO]: PROCESS!" << std::endl;
+        M3D r_wl = m_kf->x().r_wi * m_kf->x().r_il;
+        V3D t_wl = m_kf->x().r_wi * m_kf->x().t_il + m_kf->x().t_wi;
+        m_lastest_cloud = LidarProcessor::transformCloud(package.cloud, r_wl, t_wl);
     }
     else
     {
-        std::cout << "[VIO]: PROCESS!" << std::endl;
+        if (m_lastest_cloud != nullptr)
+        {
+            std::cout << package.image.cols << " | " << package.image.rows << ":" << m_lastest_cloud->size() << std::endl;
+            std::cout << "[VIO]: PROCESS!" << std::endl;
+        }
     }
 }

@@ -24,4 +24,5 @@ private:
     std::shared_ptr<IESKF> m_kf;
     std::shared_ptr<IMUProcessor> m_imu_processor;
     std::shared_ptr<LidarProcessor> m_lidar_processor;
+    CloudType::Ptr m_lastest_cloud;
 };
