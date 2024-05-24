@@ -39,23 +39,23 @@ public:
 class Feature
 {
 public:
-    Feature(const V2D &_px, const V3D &_pf, const M3D &_r_fw, const V3D _t_fw, double _score, int _level)
-        : px(_px), pf(_pf), r_fw(_r_fw), t_fw(_t_fw), score(_score), level(_level)
+    Feature(const V2D &_px, const V3D &_pc, const M3D &_r_cw, const V3D _t_cw, double _score, int _level)
+        : px(_px), pc(_pc), r_cw(_r_cw), t_cw(_t_cw), score(_score), level(_level)
     {
         patches.resize(3);
     }
 
-    M3D r_wf() { return r_fw.transpose(); }
+    M3D r_wc() { return r_cw.transpose(); }
 
-    V3D t_wf() { return -r_fw.transpose() * t_fw; }
+    V3D t_wc() { return -r_cw.transpose() * t_cw; }
 
 public:
     size_t frame_id;
     cv::Mat frame;
     V2D px;
-    V3D pf;
-    M3D r_fw;
-    V3D t_fw;
+    V3D pc;
+    M3D r_cw;
+    V3D t_cw;
     Vec<cv::Mat> patches;
     float score;
     int level;
@@ -89,7 +89,20 @@ public:
 
     void process(cv::Mat &img, CloudType::Ptr cloud, bool is_new_cloud);
 
+    void incrVisualMap();
+
+    M3D r_cw();
+    V3D t_cw();
+    M3D r_ci();
+    V3D t_ci();
+    V3D w2c(const V3D& p);
+
 private:
     std::shared_ptr<IESKF> m_kf;
     std::shared_ptr<PinholeCamera> m_camera;
+
+    Vec<Point *> cache_points;
+    Vec<bool> cache_flag;
+    Vec<double> cache_depth;
+    Vec<double> cache_score;
 };

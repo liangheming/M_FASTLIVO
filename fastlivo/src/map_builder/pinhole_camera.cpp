@@ -77,7 +77,7 @@ V2D PinholeCamera::cam2Img(const V3D &xyz) const
     return cam2Img(project2d(xyz));
 }
 
-bool PinholeCamera::isInImg(const Eigen::Vector2i &obs, int boundary = 0) const
+bool PinholeCamera::isInImg(const Eigen::Vector2i &obs, int boundary) const
 {
     if (obs[0] >= boundary && obs[0] < width() - boundary && obs[1] >= boundary && obs[1] < height() - boundary)
         return true;
@@ -178,8 +178,8 @@ bool CVUtils::getPatch(cv::Mat img, const V2D px, cv::Mat &patch, int half_patch
     int height = img.rows;
     int width = img.cols;
     assert(img.type() == CV_8U);
-    asset(patch.type() == CV_32F);
-    asset(patch.cols == 2 * half_patch + 1 && patch.rows == half_patch + 1);
+    assert(patch.type() == CV_32F);
+    assert(patch.cols == 2 * half_patch + 1 && patch.rows == 2 * half_patch + 1);
     const float u_ref = px[0];
     const float v_ref = px[1];
     const int scale = (1 << level);
@@ -192,7 +192,6 @@ bool CVUtils::getPatch(cv::Mat img, const V2D px, cv::Mat &patch, int half_patch
     const float w_tr = subpix_u_ref * (1.0 - subpix_v_ref);
     const float w_bl = (1.0 - subpix_u_ref) * subpix_v_ref;
     const float w_br = subpix_u_ref * subpix_v_ref;
-
     if (u_ref_i - half_patch < 0 || u_ref_i + half_patch >= width || v_ref_i - half_patch < 0 || v_ref_i + half_patch >= height)
         return false;
 
@@ -210,4 +209,5 @@ bool CVUtils::getPatch(cv::Mat img, const V2D px, cv::Mat &patch, int half_patch
             patch.ptr<float>(y)[x] = w_tl * tl + w_tr * tr + w_bl * bl + w_br * br;
         }
     }
+    return true;
 }

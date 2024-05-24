@@ -15,7 +15,7 @@ bool Point::getCloseViewObs(const V3D &cam_pos, std::shared_ptr<Feature> &out, d
     double min_cos_angle = 0;
     for (auto it = obs.begin(); it != obs.end(); ++it)
     {
-        Eigen::Vector3d dir((*it)->t_wf() - pos);
+        Eigen::Vector3d dir((*it)->t_wc() - pos);
         dir.normalize();
         double cos_angle = obs_dir.dot(dir);
         if (cos_angle > min_cos_angle)
@@ -39,7 +39,7 @@ bool Point::getFurthestViewObs(const V3D &cam_pos, std::shared_ptr<Feature> &out
     double maxdist = 0.0;
     for (auto it = obs.begin(); it != obs.end(); it++)
     {
-        double dist = ((*it)->t_wf() - cam_pos).norm();
+        double dist = ((*it)->t_wc() - cam_pos).norm();
         if (dist > maxdist)
         {
             maxdist = dist;
@@ -62,3 +62,32 @@ void Point::deleteFeatureRef(std::shared_ptr<Feature> feat)
     }
 }
 
+M3D ImageProcessor::r_cw()
+{
+    const State &s = m_kf->x();
+    return s.r_cl * s.r_il.transpose() * s.r_wi.transpose();
+}
+
+V3D ImageProcessor::t_cw()
+{
+    const State &s = m_kf->x();
+    return -s.r_cl * s.r_il.transpose() * (s.r_wi.transpose() * s.t_wi + s.t_il) + s.t_cl;
+}
+
+M3D ImageProcessor::r_ci()
+{
+    const State &s = m_kf->x();
+    return s.r_cl * s.r_il.transpose();
+}
+
+V3D ImageProcessor::t_ci()
+{
+    const State &s = m_kf->x();
+
+    return -s.r_cl * s.r_il.transpose() * s.t_il + s.t_cl;
+}
+
+V3D ImageProcessor::w2c(const V3D &p)
+{
+    return r_cw() * p + t_cw();
+}
