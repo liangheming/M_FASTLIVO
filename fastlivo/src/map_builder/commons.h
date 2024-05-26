@@ -52,10 +52,11 @@ struct Config
     double cam_cx = 310.833037316;
     double cam_cy = 266.985989326;
     Vec<double> cam_d{-0.0944205499243979, 0.0946727677776504, -0.00807970960613932, 8.07461209775283e-05, 0.0};
-    double patch_size = 8;
-    double grid_size = 32;
+    int half_patch_size = 4;
+    int grid_size = 32;
     double selector_scan_resolution = 0.2;
     double selector_voxel_size = 0.5;
+    double pixel_sq_dist_thresh = 100;
 };
 
 struct IMUData

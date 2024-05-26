@@ -36,6 +36,8 @@ public:
     };
 };
 
+class Point;
+
 class Feature
 {
 public:
@@ -59,6 +61,7 @@ public:
     Vec<cv::Mat> patches;
     float score;
     int level;
+    std::weak_ptr<Point> point;
 };
 
 class Point
@@ -85,7 +88,17 @@ using FeatMap = std::unordered_map<VoxelKey, Vec<std::shared_ptr<Point>>, VoxelK
 class ImageProcessor
 {
 public:
-    ImageProcessor(std::shared_ptr<IESKF> kf, std::shared_ptr<PinholeCamera> camera);
+    ImageProcessor(Config &config, std::shared_ptr<IESKF> kf);
+
+    int gridIndex(const V2D &px);
+
+    void selectReference(CloudType::Ptr cloud);
+
+    M2D getCRAffine2d(std::shared_ptr<Feature> ref_ptr);
+
+    int getBestSearchLevel(const M2D &affine_cr, const int max_level);
+
+    void getRefAffinePatch(const M2D &affine_rc, const V2D &px_ref, const cv::Mat &img_ref, const int search_level, cv::Mat &patch);
 
     void process(cv::Mat &img, CloudType::Ptr cloud, bool is_new_cloud);
 
@@ -95,14 +108,26 @@ public:
     V3D t_cw();
     M3D r_ci();
     V3D t_ci();
-    V3D w2c(const V3D& p);
+    M3D r_wc();
+    V3D t_wc();
 
 private:
+    Config m_config;
+    int m_grid_num;
+    int m_grid_width;
+    int m_grid_height;
+    int m_patch_size;
     std::shared_ptr<IESKF> m_kf;
     std::shared_ptr<PinholeCamera> m_camera;
 
     Vec<Point *> cache_points;
     Vec<bool> cache_flag;
-    Vec<double> cache_depth;
+    Vec<double> cache_grid_depth;
+    Vec<double> cache_pixel_depth;
     Vec<double> cache_score;
+    cv::Mat m_cur_img_color;
+    cv::Mat m_cur_img_gray;
+    CloudType::Ptr m_cur_cloud;
+    pcl::VoxelGrid<PointType> m_cloud_filter;
+    FeatMap m_featmap;
 };
