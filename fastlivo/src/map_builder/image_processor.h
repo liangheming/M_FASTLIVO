@@ -85,6 +85,14 @@ public:
 
 using FeatMap = std::unordered_map<VoxelKey, Vec<std::shared_ptr<Point>>, VoxelKey::Hasher>;
 
+struct ReferencePoint
+{
+    cv::Mat patch;
+    int search_level;
+    double error;
+    std::shared_ptr<Feature> feat_ptr;
+};
+
 class ImageProcessor
 {
 public:
@@ -101,8 +109,12 @@ public:
     void getRefAffinePatch(const M2D &affine_rc, const V2D &px_ref, const cv::Mat &img_ref, const int search_level, cv::Mat &patch);
 
     void process(cv::Mat &img, CloudType::Ptr cloud, bool is_new_cloud);
+    
+    void addPoint(std::shared_ptr<Point> point_ptr);
 
-    void incrVisualMap();
+    int incrVisualMap();
+    
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr getLastestColoredCloud();
 
     M3D r_cw();
     V3D t_cw();
@@ -125,6 +137,8 @@ private:
     Vec<double> cache_grid_depth;
     Vec<double> cache_pixel_depth;
     Vec<double> cache_score;
+    Vec<V3D> cache_points_to_add;
+    Vec<ReferencePoint> cache_reference;
     cv::Mat m_cur_img_color;
     cv::Mat m_cur_img_gray;
     CloudType::Ptr m_cur_cloud;
