@@ -85,14 +85,14 @@ void IESKF::update()
     V27D b;
     for (size_t i = 0; i < m_max_iter; i++)
     {
-        m_func(m_x, shared_data);
+        m_loss_func(m_x, shared_data);
         if (!shared_data.valid)
             break;
         H.setZero();
         b.setZero();
         delta = m_x - predict_x;
         M27D J = M27D::Identity();
-       
+
         J.block<3, 3>(0, 0) = jrInv(delta.segment<3>(0));
         J.block<3, 3>(6, 6) = jrInv(delta.segment<3>(6));
         J.block<3, 3>(12, 12) = jrInv(delta.segment<3>(12));
@@ -103,7 +103,9 @@ void IESKF::update()
         delta = -H.inverse() * b;
         m_x += delta;
         shared_data.iter_num += 1;
-        if (delta.maxCoeff() < m_eps)
+        // if (delta.maxCoeff() < m_eps)
+        //     break;
+        if (m_stop_func(delta))
             break;
     }
     M27D L = M27D::Identity();

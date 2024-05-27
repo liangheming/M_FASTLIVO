@@ -42,7 +42,7 @@ public:
         loadCofig();
         initSubsriber();
         initPublisher();
-        m_kf = std::make_shared<IESKF>();
+        m_kf = std::make_shared<IESKF>(m_builder_config.ieskf_max_iter);
         m_builder = std::make_shared<MapBuilder>(m_builder_config, m_kf);
         main_loop = m_nh.createTimer(ros::Duration(0.05), &LIVONode::mainCB, this);
     }
@@ -54,7 +54,7 @@ public:
         m_nh.param<Vec<double>>("t_il", t_il, {0.0, 0.0, 0.0});
         m_nh.param<Vec<double>>("r_cl", r_cl, {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0});
         m_nh.param<Vec<double>>("t_cl", t_cl, {0.0, 0.0, 0.0});
-    
+
         m_builder_config.r_il << r_il[0], r_il[1], r_il[2], r_il[3], r_il[4], r_il[5], r_il[6], r_il[7], r_il[8];
         m_builder_config.t_il << t_il[0], t_il[1], t_il[2];
         m_builder_config.r_cl << r_cl[0], r_cl[1], r_cl[2], r_cl[3], r_cl[4], r_cl[5], r_cl[6], r_cl[7], r_cl[8];

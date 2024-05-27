@@ -62,7 +62,9 @@ public:
     Input(double a1, double a2, double a3, double g1, double g2, double g3) : acc(a1, a2, a3), gyro(g1, g2, g3) {}
 };
 
-using measure_func = std::function<void(State &, SharedState &)>;
+using loss_func = std::function<void(State &, SharedState &)>;
+
+using stop_func = std::function<bool(const V27D &)>;
 
 class IESKF
 {
@@ -77,7 +79,9 @@ public:
 
     M27D &P() { return m_P; }
 
-    void set_share_function(measure_func func) { m_func = func; }
+    void set_share_function(loss_func func) { m_loss_func = func; }
+
+    void set_stop_function(stop_func func) { m_stop_func = func; }
 
     void change_P(const M27D &P) { m_P = P; }
 
@@ -90,7 +94,8 @@ private:
     double m_eps = 0.001;
     State m_x;
     M27D m_P;
-    measure_func m_func;
+    loss_func m_loss_func;
+    stop_func m_stop_func;
     M27D m_F;
     M27x12D m_G;
 };

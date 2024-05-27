@@ -84,6 +84,22 @@ bool PinholeCamera::isInImg(const Eigen::Vector2i &obs, int boundary) const
     return false;
 }
 
+Eigen::Matrix<double, 2, 3> PinholeCamera::dpi(V3D pc)
+{
+    Eigen::Matrix<double, 2, 3> J;
+    const double x = pc[0];
+    const double y = pc[1];
+    const double z_inv = 1. / pc[2];
+    const double z_inv_2 = z_inv * z_inv;
+    J(0, 0) = m_fx * z_inv;
+    J(0, 1) = 0.0;
+    J(0, 2) = -m_fx * x * z_inv_2;
+    J(1, 0) = 0.0;
+    J(1, 1) = m_fy * z_inv;
+    J(1, 2) = -m_fy * y * z_inv_2;
+    return J;
+}
+
 float CVUtils::interpolateMat_8u(const cv::Mat &mat, float u, float v)
 {
     assert(mat.type() == CV_8U);
@@ -210,4 +226,16 @@ bool CVUtils::getPatch(cv::Mat img, const V2D px, cv::Mat &patch, int half_patch
         }
     }
     return true;
+}
+
+float CVUtils::weightPixel(cv::Mat img, Eigen::Vector4f &weight, Eigen::Vector2i &tl_xy)
+{
+    assert(img.type() == CV_8U);
+    int tl_x = tl_xy(0), tl_y = tl_xy(1);
+    float w_tl = weight(0), w_tr = weight(1), w_bl = weight(2), w_br = weight(3);
+    float tl = static_cast<float>(img.ptr<uint8_t>(tl_y)[tl_x]);
+    float tr = static_cast<float>(img.ptr<uint8_t>(tl_y)[tl_x + 1]);
+    float bl = static_cast<float>(img.ptr<uint8_t>(tl_y + 1)[tl_x]);
+    float br = static_cast<float>(img.ptr<uint8_t>(tl_y + 1)[tl_x + 1]);
+    return w_tl * tl + w_tr * tr + w_bl * bl + w_br * br;
 }

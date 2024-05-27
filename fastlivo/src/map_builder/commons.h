@@ -23,8 +23,8 @@ float sq_dist(const PointType &p1, const PointType &p2);
 
 struct Config
 {
-    double scan_resolution = 0.25;
-    double map_resolution = 0.5;
+    double scan_resolution = 0.15;
+    double map_resolution = 0.3;
 
     double cube_len = 300;
     double det_range = 60;
@@ -36,6 +36,7 @@ struct Config
     double nbg = 0.0001;
     int imu_init_num = 20;
     int near_search_num = 5;
+    int ieskf_max_iter = 10;
     bool gravity_align = true;
     M3D r_il = M3D::Identity();
     V3D t_il = V3D::Zero();
@@ -56,7 +57,9 @@ struct Config
     int grid_size = 32;
     double selector_scan_resolution = 0.2;
     double selector_voxel_size = 0.5;
-    double pixel_sq_dist_thresh = 100;
+    double pixel_sq_dist_thresh = 300;
+    double lidar_cov_inv = 1000.0;
+    double image_cov_inv = 0.01;
 };
 
 struct IMUData

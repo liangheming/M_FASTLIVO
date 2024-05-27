@@ -110,11 +110,17 @@ public:
 
     void process(cv::Mat &img, CloudType::Ptr cloud, bool is_new_cloud);
     
+    void addObservations();
+
     void addPoint(std::shared_ptr<Point> point_ptr);
 
     int incrVisualMap();
     
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr getLastestColoredCloud();
+    
+    void computeLevelJacc(State &state,SharedState &share_data,int level);
+
+    
 
     M3D r_cw();
     V3D t_cw();

@@ -147,6 +147,10 @@ void LidarProcessor::process(SyncPackage &package)
 {
     m_kf->set_share_function([&](State &s, SharedState &d)
                              { updateLossFunc(s, d); });
+    m_kf->set_stop_function([&](const V27D &delta) -> bool
+                            { V3D rot_delta = delta.block<3, 1>(0, 0);
+                            V3D t_delta = delta.block<3, 1>(3, 0);
+                            return (rot_delta.norm() * 57.3 < 0.01) && (t_delta.norm() * 100 < 0.015); });
     if (m_config.scan_resolution > 0.0)
     {
         m_scan_filter.setInputCloud(package.cloud);
@@ -237,8 +241,8 @@ void LidarProcessor::updateLossFunc(State &state, SharedState &share_data)
             J.block<1, 3>(0, 6) = C;
             J.block<1, 3>(0, 9) = D;
         }
-        share_data.H += J.transpose() * 1000 * J;
-        share_data.b += J.transpose() * 1000 * norm_p.intensity;
+        share_data.H += J.transpose() * m_config.lidar_cov_inv * J;
+        share_data.b += J.transpose() * m_config.lidar_cov_inv * norm_p.intensity;
     }
 }
 

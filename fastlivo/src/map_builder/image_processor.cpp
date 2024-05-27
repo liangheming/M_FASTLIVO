@@ -302,7 +302,6 @@ void ImageProcessor::selectReference(CloudType::Ptr cloud)
         ref_point.search_level = best_search_level;
         cache_reference.push_back(ref_point);
     }
-    std::cout << "[selectReference] size: " << cache_reference.size() << std::endl;
 }
 
 void ImageProcessor::process(cv::Mat &img, CloudType::Ptr cloud, bool is_new_cloud)
@@ -313,12 +312,23 @@ void ImageProcessor::process(cv::Mat &img, CloudType::Ptr cloud, bool is_new_clo
         m_cur_img_color = img;
     cv::cvtColor(m_cur_img_color, m_cur_img_gray, cv::COLOR_BGR2GRAY);
     m_cur_cloud = cloud;
-    std::cout << "[IMAGE PROCESS] BEFOR SELECT REFERENCE! " << m_cur_img_gray.cols << " | " << m_cur_img_gray.rows << " | " << m_cur_cloud->size() << std::endl;
     selectReference(m_cur_cloud);
-    std::cout << "[IMAGE PROCESS] END SELECT REFERENCE! " << std::endl;
     // 计算雅可比更新状态量
 
-    // 添加新的观测
+    if (cache_reference.size() >= 1)
+    {
+        m_kf->set_stop_function([&](const V27D &delta) -> bool
+                                { V3D rot_delta = delta.block<3, 1>(0, 0);
+                            V3D t_delta = delta.block<3, 1>(3, 0);
+                            return (rot_delta.norm() * 57.3f < 0.001f) && (t_delta.norm() * 100.0f < 0.001f); });
+        std::cout << "[IMAGE PROCESS] UPDAT IESKF, SELECT SIZE: " << cache_reference.size() << std::endl;
+        for (int i = 2; i >= 0; i--)
+        {
+            m_kf->set_share_function([&](State &s, SharedState &d)
+                                     { computeLevelJacc(s, d, i); });
+            m_kf->update();
+        }
+    }
 
     // 添加新的点
     if (is_new_cloud)
@@ -326,6 +336,8 @@ void ImageProcessor::process(cv::Mat &img, CloudType::Ptr cloud, bool is_new_clo
         int add_count = incrVisualMap();
         std::cout << "[IMAGE PROCESS] ADD MAP POINTS: " << add_count << std::endl;
     }
+
+    addObservations();
 }
 
 M3D ImageProcessor::r_cw()
@@ -361,6 +373,58 @@ M3D ImageProcessor::r_wc()
 V3D ImageProcessor::t_wc()
 {
     return -r_cw().transpose() * t_cw();
+}
+
+void ImageProcessor::addObservations()
+{
+    if (cache_reference.size() == 0)
+        return;
+    for (int i = 0; i < cache_reference.size(); i++)
+    {
+        ReferencePoint &ref_points = cache_reference[i];
+        std::shared_ptr<Point> point_ptr = ref_points.feat_ptr->point.lock();
+        V3D pw = point_ptr->pos;
+        V3D pc = r_cw() * pw + t_cw();
+        V2D px = m_camera->cam2Img(pc);
+
+        std::shared_ptr<Feature> last_feature = point_ptr->obs.back();
+        M3D last_r_cw = last_feature->r_cw;
+        M3D delta_r = last_r_cw * r_wc();
+        V3D delta_t = (t_wc() - last_feature->t_wc());
+
+        double delta_theta = (delta_r.trace() > 3.0 - 1e-6) ? 0.0 : std::acos(0.5 * (delta_r.trace() - 1));
+        double delta_p = delta_t.norm();
+        if (delta_p <= 0.5 && delta_theta <= 10)
+            continue;
+        V2D last_px = last_feature->px;
+
+        double pixel_dist = (px - last_px).norm();
+        if (pixel_dist <= 40)
+            continue;
+
+        if (point_ptr->obs.size() >= 20)
+        {
+            std::shared_ptr<Feature> feat_ptr_delete;
+            point_ptr->getFurthestViewObs(t_wc(), feat_ptr_delete);
+            point_ptr->deleteFeatureRef(feat_ptr_delete);
+        }
+
+        cv::Mat img = m_cur_img_gray.clone();
+        cv::Mat patch0(m_patch_size, m_patch_size, CV_32FC1), patch1(m_patch_size, m_patch_size, CV_32FC1), patch2(m_patch_size, m_patch_size, CV_32FC1);
+        CVUtils::getPatch(img, px, patch0, m_config.half_patch_size, 0);
+        CVUtils::getPatch(img, px, patch1, m_config.half_patch_size, 1);
+        CVUtils::getPatch(img, px, patch2, m_config.half_patch_size, 2);
+
+        point_ptr->value = CVUtils::shiTomasiScore(img, static_cast<int>(px[0]), static_cast<int>(px[1]));
+        V3D pc_norm = m_camera->img2Cam(px);
+        std::shared_ptr<Feature> feat_ptr_add = std::make_shared<Feature>(px, pc_norm, r_cw(), t_cw(), point_ptr->value, ref_points.search_level);
+        feat_ptr_add->patches[0] = patch0;
+        feat_ptr_add->patches[1] = patch1;
+        feat_ptr_add->patches[2] = patch2;
+        feat_ptr_add->frame = img;
+        feat_ptr_add->point = point_ptr;
+        point_ptr->addObs(feat_ptr_add);
+    }
 }
 
 void ImageProcessor::addPoint(std::shared_ptr<Point> point_ptr)
@@ -460,4 +524,102 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr ImageProcessor::getLastestColoredCloud()
         ret->push_back(p_color);
     }
     return ret;
+}
+
+void ImageProcessor::computeLevelJacc(State &state, SharedState &share_data, int level)
+{
+    M3D cur_r_cw = state.r_cl * state.r_il.transpose() * state.r_wi.transpose();
+    V3D cur_t_cw = -state.r_cl * state.r_il.transpose() * (state.r_wi.transpose() * state.t_wi + state.t_il) + state.t_cl;
+    M3D cur_r_ci = state.r_cl * state.r_il.transpose();
+    V3D cur_t_ci = -state.r_cl * state.r_il.transpose() * state.t_il + state.t_cl;
+
+    double total_res = 0.0;
+    double total_count = 0.0;
+
+    share_data.H.setZero();
+    share_data.b.setZero();
+
+    for (int idx = 0; idx < cache_reference.size(); idx++)
+    {
+        ReferencePoint &ref_point = cache_reference[idx];
+
+        V3D pw = ref_point.feat_ptr->point.lock()->pos;
+        V3D pc = cur_r_cw * pw + cur_t_cw;
+        if (pc(2) <= 0)
+            continue;
+
+        Eigen::Matrix<double, 2, 3> Jdpi = m_camera->dpi(pc);
+        M3D temp_skew = Sophus::SO3d::hat(state.r_wi.transpose() * (pw - state.t_wi));
+
+        V2D px = m_camera->cam2Img(pc);
+
+        int pyramid_level = level + ref_point.search_level;
+        const int scale = (1 << pyramid_level);
+
+        const float u_ref = static_cast<float>(px[0]);
+        const float v_ref = static_cast<float>(px[1]);
+        const int u_ref_i = floorf(px[0] / scale) * scale;
+        const int v_ref_i = floorf(px[1] / scale) * scale;
+        const float subpix_u_ref = (u_ref - u_ref_i) / scale;
+        const float subpix_v_ref = (v_ref - v_ref_i) / scale;
+
+        const float w_tl = (1.0 - subpix_u_ref) * (1.0 - subpix_v_ref);
+        const float w_tr = subpix_u_ref * (1.0 - subpix_v_ref);
+        const float w_bl = (1.0 - subpix_u_ref) * subpix_v_ref;
+        const float w_br = subpix_u_ref * subpix_v_ref;
+
+        cv::Mat ref_patch = level > 0 ? ref_point.feat_ptr->patches[level] : ref_point.patch;
+
+        Eigen::Vector4f weights(w_tl, w_tr, w_bl, w_br);
+        for (int y = 0; y < m_patch_size; y++)
+        {
+            for (int x = 0; x < m_patch_size; x++)
+            {
+                V2D px_patch(x - m_config.half_patch_size, y - m_config.half_patch_size);
+                px_patch *= scale;
+                Eigen::Vector2i pixel_c(u_ref_i + static_cast<int>(px_patch(0)), v_ref_i + static_cast<int>(px_patch(1)));
+                Eigen::Vector2i pixel_l = pixel_c + Eigen::Vector2i(-1, 0);
+                Eigen::Vector2i pixel_r = pixel_c + Eigen::Vector2i(1, 0);
+                Eigen::Vector2i pixel_t = pixel_c + Eigen::Vector2i(0, -1);
+                Eigen::Vector2i pixel_b = pixel_c + Eigen::Vector2i(0, 1);
+                if (pixel_l(0) < 0 || pixel_t(1) < 0 || pixel_r(0) >= m_cur_img_gray.cols - 1 || pixel_b(1) >= m_cur_img_gray.rows - 1)
+                    continue;
+                float du = 0.5f * (CVUtils::weightPixel(m_cur_img_gray, weights, pixel_r) - CVUtils::weightPixel(m_cur_img_gray, weights, pixel_l));
+                float dv = 0.5f * (CVUtils::weightPixel(m_cur_img_gray, weights, pixel_b) - CVUtils::weightPixel(m_cur_img_gray, weights, pixel_t));
+                float val = CVUtils::weightPixel(m_cur_img_gray, weights, pixel_c);
+                double res = static_cast<double>(val - ref_patch.ptr<float>(y)[x]);
+
+                total_res += std::abs(res);
+                total_count += 1.0;
+                Eigen::Vector2d Jdimg;
+                Jdimg << static_cast<double>(du), static_cast<double>(dv);
+                Jdimg = Jdimg * (1.0 / scale);
+                Eigen::Matrix<double, 1, 3> Jdp = Jdimg.transpose() * Jdpi;
+
+                Eigen::Matrix<double, 1, 18> J = Eigen::Matrix<double, 1, 18>::Zero();
+                J.block<1, 3>(0, 0) = Jdp * cur_r_ci * temp_skew;
+                J.block<1, 3>(0, 3) = -Jdp * cur_r_ci * state.r_wi.transpose();
+
+                share_data.H += J.transpose() * m_config.image_cov_inv * J;
+                share_data.b += J.transpose() * m_config.image_cov_inv * res;
+            }
+        }
+    }
+
+    if (total_count == 0.0)
+    {
+        share_data.valid = false;
+        return;
+    }
+
+    double mean_res = total_res / total_count;
+    if (mean_res > share_data.res)
+    {
+        std::cout << "[VIO] WARNING ITER EARLY STOPED! ITER NUM: " << share_data.iter_num << std::endl;
+        share_data.valid = false;
+        return;
+    }
+
+    share_data.valid = true;
+    share_data.res = mean_res;
 }

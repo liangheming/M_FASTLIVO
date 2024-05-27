@@ -11,6 +11,8 @@ public:
     static Eigen::Vector3f interpolateMat_color(const cv::Mat &mat, float u, float v);
 
     static bool getPatch(cv::Mat img, const V2D px, cv::Mat &patch, int half_patch, int level = 0);
+
+    static float weightPixel(cv::Mat img, Eigen::Vector4f &weight, Eigen::Vector2i &tl_xy);
 };
 
 class PinholeCamera
@@ -44,6 +46,8 @@ public:
     inline double cy() const { return m_cy; }
 
     bool isInImg(const Eigen::Vector2i &obs, int boundary = 0) const;
+
+    Eigen::Matrix<double, 2, 3> dpi(V3D pc);
 
 private:
     double m_width;
