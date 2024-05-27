@@ -168,6 +168,10 @@ void LidarProcessor::process(SyncPackage &package)
 void LidarProcessor::updateLossFunc(State &state, SharedState &share_data)
 {
     int size = m_cloud_down_lidar->size();
+#ifdef MP_EN
+    omp_set_num_threads(MP_PROC_NUM);
+#pragma omp parallel for
+#endif
     for (int i = 0; i < size; i++)
     {
         PointType &point_body = m_cloud_down_lidar->points[i];

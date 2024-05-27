@@ -321,7 +321,7 @@ void ImageProcessor::process(cv::Mat &img, CloudType::Ptr cloud, bool is_new_clo
                                 { V3D rot_delta = delta.block<3, 1>(0, 0);
                             V3D t_delta = delta.block<3, 1>(3, 0);
                             return (rot_delta.norm() * 57.3f < 0.001f) && (t_delta.norm() * 100.0f < 0.001f); });
-        std::cout << "[IMAGE PROCESS] UPDAT IESKF, SELECT SIZE: " << cache_reference.size() << std::endl;
+        // std::cout << "[IMAGE PROCESS] UPDAT IESKF, SELECT SIZE: " << cache_reference.size() << std::endl;
         for (int i = 2; i >= 0; i--)
         {
             m_kf->set_share_function([&](State &s, SharedState &d)
@@ -334,7 +334,7 @@ void ImageProcessor::process(cv::Mat &img, CloudType::Ptr cloud, bool is_new_clo
     if (is_new_cloud)
     {
         int add_count = incrVisualMap();
-        std::cout << "[IMAGE PROCESS] ADD MAP POINTS: " << add_count << std::endl;
+        // std::cout << "[IMAGE PROCESS] ADD MAP POINTS: " << add_count << std::endl;
     }
 
     addObservations();
@@ -615,7 +615,7 @@ void ImageProcessor::computeLevelJacc(State &state, SharedState &share_data, int
     double mean_res = total_res / total_count;
     if (mean_res > share_data.res)
     {
-        std::cout << "[VIO] WARNING ITER EARLY STOPED! ITER NUM: " << share_data.iter_num << std::endl;
+        // std::cout << "[VIO] WARNING ITER EARLY STOPED! ITER NUM: " << share_data.iter_num << std::endl;
         share_data.valid = false;
         return;
     }

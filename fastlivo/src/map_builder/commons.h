@@ -59,7 +59,7 @@ struct Config
     double selector_voxel_size = 0.5;
     double pixel_sq_dist_thresh = 300;
     double lidar_cov_inv = 1000.0;
-    double image_cov_inv = 0.01;
+    double image_cov_inv = 0.001;
 };
 
 struct IMUData
