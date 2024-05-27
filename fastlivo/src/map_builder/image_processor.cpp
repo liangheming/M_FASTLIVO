@@ -276,7 +276,7 @@ void ImageProcessor::selectReference(CloudType::Ptr cloud)
         M2D affine_rc = affine_cr.inverse();
         if (affine_rc.hasNaN())
             continue;
-        std::cout << "[selectReference] best_search_level: " << best_search_level << std::endl;
+        // std::cout << "[selectReference] best_search_level: " << best_search_level << std::endl;
         cv::Mat ref_patch(m_patch_size, m_patch_size, CV_32FC1);
         getRefAffinePatch(affine_rc, feat_ptr->px, feat_ptr->frame, best_search_level, ref_patch);
         cv::Mat cur_patch(m_patch_size, m_patch_size, CV_32FC1);

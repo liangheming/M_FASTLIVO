@@ -244,8 +244,8 @@ public:
         }
         else
         {
-            // pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_color = m_builder->lidarSelector()->getCurentCloudRGB();
-            // publishCloudColor(m_world_cloud_color_pub, cloud_color, m_sync_pack.image_time);
+            pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_color = m_builder->image_processor()->getLastestColoredCloud();
+            publishCloudColor(m_world_cloud_color_pub, cloud_color, m_sync_pack.image_time);
         }
     }
 

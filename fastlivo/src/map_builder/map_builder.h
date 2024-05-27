@@ -19,6 +19,10 @@ public:
 
     BuilderStatus status() { return m_status; }
 
+    std::shared_ptr<ImageProcessor> image_processor(){return m_image_processor;}
+    
+    std::shared_ptr<LidarProcessor> lidar_processor(){return m_lidar_processor;}
+
 private:
     Config m_config;
     BuilderStatus m_status;
