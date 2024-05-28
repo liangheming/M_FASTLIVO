@@ -49,11 +49,13 @@ void MapBuilder::process(SyncPackage &package)
     }
     else
     {
-        if (m_lastest_cloud != nullptr)
-        {
-            // std::cout << "[VIO]: PROCESS START!" << std::endl;
-            m_image_processor->process(package.image, m_lastest_cloud, m_is_new_cloud);
-            m_is_new_cloud = false;
-        }
+        // if (!m_config.image_enable)
+        //     return;
+
+        if (m_lastest_cloud == nullptr)
+            return;
+
+        m_image_processor->process(package.image, m_lastest_cloud, m_is_new_cloud);
+        m_is_new_cloud = false;
     }
 }

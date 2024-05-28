@@ -150,4 +150,5 @@ private:
     CloudType::Ptr m_cur_cloud;
     pcl::VoxelGrid<PointType> m_cloud_filter;
     FeatMap m_featmap;
+    u_int64_t m_frame_count;
 };

@@ -1,0 +1,47 @@
+
+imu_topic: /livox/imu
+lidar_topic: /livox/lidar
+image_topic: /left_camera/image
+map_frame: lidar
+body_frame: body
+
+lidar_filter_num: 3
+lidar_blind: 5
+scan_resolution: 0.15
+map_resolution: 0.3
+cube_len: 300
+det_range: 60
+move_thresh: 1.5
+image_enable: true
+na: 0.01
+ng: 0.01
+nba: 0.0001
+nbg: 0.0001
+imu_init_num: 20
+near_search_num: 5
+ieskf_max_iter: 10
+gravity_align: true
+
+esti_li: false
+esti_ci: false
+cam_width: 640
+cam_height: 512
+cam_fx: 431.795259219
+cam_fy: 431.550090267
+cam_cx: 310.833037316
+cam_cy: 266.985989326
+cam_d: [-0.0944205499243979, 0.0946727677776504, -0.00807970960613932, 8.07461209775283e-05, 0.0]
+
+half_patch_size: 4
+grid_size: 32
+skip_first_image_num: 2
+selector_scan_resolution: 0.2
+selector_voxel_size: 0.5
+pixel_sq_dist_thresh: 300
+lidar_cov_inv: 1000.0
+image_cov_inv: 0.01
+
+r_il: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+t_il: [0.04165, 0.02326, -0.0284]
+r_cl: [0.00162756, -0.999991, 0.00390957, -0.0126748, -0.00392989, -0.999912, 0.999918, 0.00157786, -0.012681]
+t_cl: [0.0409257, 0.0318424, -0.0927219]

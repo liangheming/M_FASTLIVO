@@ -23,12 +23,16 @@ float sq_dist(const PointType &p1, const PointType &p2);
 
 struct Config
 {
+    int lidar_filter_num = 2;
+    double lidar_blind = 5;
     double scan_resolution = 0.15;
     double map_resolution = 0.3;
 
     double cube_len = 300;
     double det_range = 60;
     double move_thresh = 1.5;
+
+    bool image_enable = true;
 
     double na = 0.01;
     double ng = 0.01;
@@ -55,6 +59,7 @@ struct Config
     Vec<double> cam_d{-0.0944205499243979, 0.0946727677776504, -0.00807970960613932, 8.07461209775283e-05, 0.0};
     int half_patch_size = 4;
     int grid_size = 32;
+    int skip_first_image_num = 1;
     double selector_scan_resolution = 0.2;
     double selector_voxel_size = 0.5;
     double pixel_sq_dist_thresh = 300;

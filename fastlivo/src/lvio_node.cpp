@@ -49,6 +49,54 @@ public:
 
     void loadCofig()
     {
+        m_nh.param<std::string>("imu_topic", m_node_config.imu_topic, "/livox/imu");
+        m_nh.param<std::string>("lidar_topic", m_node_config.lidar_topic, "/livox/lidar");
+        m_nh.param<std::string>("image_topic", m_node_config.image_topic, "/left_camera/image");
+        m_nh.param<std::string>("map_frame", m_node_config.map_frame, "lidar");
+        m_nh.param<std::string>("body_frame", m_node_config.body_frame, "body");
+
+        m_nh.param<int>("lidar_filter_num", m_builder_config.lidar_filter_num, 2);
+        m_nh.param<double>("lidar_blind", m_builder_config.lidar_blind, 5.0);
+        m_nh.param<double>("scan_resolution", m_builder_config.scan_resolution, 0.15);
+        m_nh.param<double>("map_resolution", m_builder_config.map_resolution, 0.3);
+
+        m_nh.param<double>("cube_len", m_builder_config.cube_len, 300);
+        m_nh.param<double>("det_range", m_builder_config.det_range, 60);
+        m_nh.param<double>("move_thresh", m_builder_config.move_thresh, 1.5);
+
+        m_nh.param<bool>("image_enable", m_builder_config.image_enable, true);
+
+        m_nh.param<double>("na", m_builder_config.na, 0.01);
+        m_nh.param<double>("ng", m_builder_config.ng, 0.01);
+        m_nh.param<double>("nba", m_builder_config.nba, 0.0001);
+        m_nh.param<double>("nbg", m_builder_config.nbg, 0.0001);
+
+        m_nh.param<int>("imu_init_num", m_builder_config.imu_init_num, 20);
+        m_nh.param<int>("near_search_num", m_builder_config.near_search_num, 5);
+        m_nh.param<int>("ieskf_max_iter", m_builder_config.ieskf_max_iter, 10);
+
+        m_nh.param<bool>("gravity_align", m_builder_config.gravity_align, true);
+        m_nh.param<bool>("esti_li", m_builder_config.esti_li, false);
+        m_nh.param<bool>("esti_ci", m_builder_config.esti_ci, false);
+
+        m_nh.param<double>("cam_width", m_builder_config.cam_width, 640);
+        m_nh.param<double>("cam_height", m_builder_config.cam_height, 512);
+        m_nh.param<double>("cam_fx", m_builder_config.cam_fx, 431.795259219);
+        m_nh.param<double>("cam_fy", m_builder_config.cam_fy, 431.550090267);
+        m_nh.param<double>("cam_cx", m_builder_config.cam_cx, 310.833037316);
+        m_nh.param<double>("cam_cy", m_builder_config.cam_cy, 266.985989326);
+
+        Vec<double> cam_d;
+        m_nh.param<Vec<double>>("cam_d", m_builder_config.cam_d, {-0.0944205499243979, 0.0946727677776504, -0.00807970960613932, 8.07461209775283e-05, 0.0});
+        m_nh.param<int>("half_patch_size", m_builder_config.half_patch_size, 4);
+        m_nh.param<int>("grid_size", m_builder_config.grid_size, 32);
+        m_nh.param<int>("skip_first_image_num", m_builder_config.skip_first_image_num, 5);
+        m_nh.param<double>("selector_scan_resolution", m_builder_config.selector_scan_resolution, 0.2);
+        m_nh.param<double>("selector_voxel_size", m_builder_config.selector_voxel_size, 0.5);
+        m_nh.param<double>("pixel_sq_dist_thresh", m_builder_config.pixel_sq_dist_thresh, 300.0);
+        m_nh.param<double>("lidar_cov_inv", m_builder_config.lidar_cov_inv, 1000.0);
+        m_nh.param<double>("image_cov_inv", m_builder_config.image_cov_inv, 0.01);
+
         Vec<double> r_il, t_il, r_cl, t_cl;
         m_nh.param<Vec<double>>("r_il", r_il, {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0});
         m_nh.param<Vec<double>>("t_il", t_il, {0.0, 0.0, 0.0});
@@ -97,7 +145,7 @@ public:
     void lidarCB(const livox_ros_driver::CustomMsg::ConstPtr msg)
     {
         CloudType::Ptr cloud(new CloudType);
-        livox2pcl(msg, cloud, 3, 0.5);
+        livoxAvia2pcl(msg, cloud, m_builder_config.lidar_filter_num, m_builder_config.lidar_blind);
         std::lock_guard<std::mutex> lock(m_group_data.lidar_mutex);
         double timestamp = msg->header.stamp.toSec();
         if (timestamp < m_group_data.last_lidar_time)

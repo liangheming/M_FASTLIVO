@@ -4,7 +4,7 @@
     args="compressed in:=/left_camera/image raw out:=/left_camera/image" output="screen"
     respawn="true" />
   <node pkg="fastlivo" type="lvio_node" name="lvio_node" output="screen">
-    <rosparam command="load" file="$(find fastlivo)/config/demo.yaml" />
+    <rosparam command="load" file="$(find fastlivo)/config/avia_resize.yaml" />
   </node>
 
   <group if="$(arg rviz)">

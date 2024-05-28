@@ -55,6 +55,34 @@ void livox2pcl(const livox_ros_driver::CustomMsg::ConstPtr &msg, pcl::PointCloud
     }
 }
 
+void livoxAvia2pcl(const livox_ros_driver::CustomMsg::ConstPtr &msg, pcl::PointCloud<pcl::PointXYZINormal>::Ptr out, int filter_num, double blind, double max_range)
+{
+    int point_num = msg->point_num;
+    out->clear();
+    out->reserve(point_num / filter_num + 1);
+
+    uint valid_num = 0;
+
+    for (uint i = 1; i < point_num; i++)
+    {
+        if ((abs(msg->points[i].x - msg->points[i - 1].x) < 1e-8) || (abs(msg->points[i].y - msg->points[i - 1].y) < 1e-8) || (abs(msg->points[i].z - msg->points[i - 1].z) < 1e-8) || (msg->points[i].x * msg->points[i].x + msg->points[i].y * msg->points[i].y < blind) || (msg->points[i].line > 6) || ((msg->points[i].tag & 0x30) != 0x10))
+        {
+            continue;
+        }
+        valid_num++;
+        if (valid_num % filter_num == 0)
+        {
+            pcl::PointXYZINormal p;
+            p.x = msg->points[i].x;
+            p.y = msg->points[i].y;
+            p.z = msg->points[i].z;
+            p.intensity = msg->points[i].reflectivity;
+            p.curvature = msg->points[i].offset_time / float(1000000);
+            out->push_back(p);
+        }
+    }
+}
+
 cv::Mat msg2cv(const sensor_msgs::ImageConstPtr &img_msg)
 {
     return cv_bridge::toCvCopy(img_msg, "bgr8")->image;

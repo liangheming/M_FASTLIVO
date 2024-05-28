@@ -80,6 +80,7 @@ ImageProcessor::ImageProcessor(Config &config, std::shared_ptr<IESKF> kf)
                                                m_config.cam_d[0], m_config.cam_d[1],
                                                m_config.cam_d[2], m_config.cam_d[3],
                                                m_config.cam_d[4]);
+    m_frame_count = 0;
     m_grid_width = static_cast<int>(std::ceil(m_camera->width() / static_cast<double>(m_config.grid_size)));
     m_grid_height = static_cast<int>(std::ceil(m_camera->height() / static_cast<double>(m_config.grid_size)));
     m_grid_num = m_grid_height * m_grid_height;
@@ -306,16 +307,21 @@ void ImageProcessor::selectReference(CloudType::Ptr cloud)
 
 void ImageProcessor::process(cv::Mat &img, CloudType::Ptr cloud, bool is_new_cloud)
 {
+    m_frame_count++;
     if (img.cols != m_camera->width() || img.rows != m_camera->height())
         cv::resize(img, m_cur_img_color, cv::Size2i(m_camera->width(), m_camera->height()));
     else
         m_cur_img_color = img;
     cv::cvtColor(m_cur_img_color, m_cur_img_gray, cv::COLOR_BGR2GRAY);
     m_cur_cloud = cloud;
+
+    if (!m_config.image_enable)
+        return;
+
     selectReference(m_cur_cloud);
     // 计算雅可比更新状态量
 
-    if (cache_reference.size() >= 1)
+    if (cache_reference.size() >= 1 && m_frame_count > m_config.skip_first_image_num)
     {
         m_kf->set_stop_function([&](const V27D &delta) -> bool
                                 { V3D rot_delta = delta.block<3, 1>(0, 0);
@@ -568,7 +574,8 @@ void ImageProcessor::computeLevelJacc(State &state, SharedState &share_data, int
         const float w_bl = (1.0 - subpix_u_ref) * subpix_v_ref;
         const float w_br = subpix_u_ref * subpix_v_ref;
 
-        cv::Mat ref_patch = level > 0 ? ref_point.feat_ptr->patches[level] : ref_point.patch;
+        // cv::Mat ref_patch = level > 0 ? ref_point.feat_ptr->patches[level] : ref_point.patch;
+        cv::Mat ref_patch = ref_point.feat_ptr->patches[level];
 
         Eigen::Vector4f weights(w_tl, w_tr, w_bl, w_br);
         for (int y = 0; y < m_patch_size; y++)
