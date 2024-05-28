@@ -8,8 +8,8 @@ body_frame: body
 lidar_filter_num: 3
 lidar_blind_sq: 5
 lidar_max_range_sq: 900
-scan_resolution: 0.2
-map_resolution: 0.4
+scan_resolution: 0.15
+map_resolution: 0.3
 cube_len: 300
 det_range: 60
 move_thresh: 1.5
