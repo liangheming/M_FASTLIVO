@@ -56,7 +56,8 @@ public:
         m_nh.param<std::string>("body_frame", m_node_config.body_frame, "body");
 
         m_nh.param<int>("lidar_filter_num", m_builder_config.lidar_filter_num, 2);
-        m_nh.param<double>("lidar_blind", m_builder_config.lidar_blind, 5.0);
+        m_nh.param<double>("lidar_blind_sq", m_builder_config.lidar_blind_sq, 5.0);
+        m_nh.param<double>("lidar_max_range_sq", m_builder_config.lidar_max_range_sq, 400.0);
         m_nh.param<double>("scan_resolution", m_builder_config.scan_resolution, 0.15);
         m_nh.param<double>("map_resolution", m_builder_config.map_resolution, 0.3);
 
@@ -145,7 +146,7 @@ public:
     void lidarCB(const livox_ros_driver::CustomMsg::ConstPtr msg)
     {
         CloudType::Ptr cloud(new CloudType);
-        livoxAvia2pcl(msg, cloud, m_builder_config.lidar_filter_num, m_builder_config.lidar_blind);
+        livoxAvia2pcl(msg, cloud, m_builder_config.lidar_filter_num, m_builder_config.lidar_blind_sq, m_builder_config.lidar_max_range_sq);
         std::lock_guard<std::mutex> lock(m_group_data.lidar_mutex);
         double timestamp = msg->header.stamp.toSec();
         if (timestamp < m_group_data.last_lidar_time)

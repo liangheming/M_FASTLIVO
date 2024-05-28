@@ -6,9 +6,10 @@ map_frame: lidar
 body_frame: body
 
 lidar_filter_num: 3
-lidar_blind: 5
-scan_resolution: 0.15
-map_resolution: 0.3
+lidar_blind_sq: 5
+lidar_max_range_sq: 900
+scan_resolution: 0.2
+map_resolution: 0.4
 cube_len: 300
 det_range: 60
 move_thresh: 1.5
@@ -34,7 +35,7 @@ cam_d: [-0.0944205499243979, 0.0946727677776504, -0.00807970960613932, 8.0746120
 
 half_patch_size: 4
 grid_size: 32
-skip_first_image_num: 2
+skip_first_image_num: 3
 selector_scan_resolution: 0.2
 selector_voxel_size: 0.5
 pixel_sq_dist_thresh: 300

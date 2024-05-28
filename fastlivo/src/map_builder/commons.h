@@ -24,7 +24,8 @@ float sq_dist(const PointType &p1, const PointType &p2);
 struct Config
 {
     int lidar_filter_num = 2;
-    double lidar_blind = 5;
+    double lidar_blind_sq = 5;
+    double lidar_max_range_sq = 400.0;
     double scan_resolution = 0.15;
     double map_resolution = 0.3;
 

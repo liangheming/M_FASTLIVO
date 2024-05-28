@@ -55,7 +55,7 @@ void livox2pcl(const livox_ros_driver::CustomMsg::ConstPtr &msg, pcl::PointCloud
     }
 }
 
-void livoxAvia2pcl(const livox_ros_driver::CustomMsg::ConstPtr &msg, pcl::PointCloud<pcl::PointXYZINormal>::Ptr out, int filter_num, double blind, double max_range)
+void livoxAvia2pcl(const livox_ros_driver::CustomMsg::ConstPtr &msg, pcl::PointCloud<pcl::PointXYZINormal>::Ptr out, int filter_num, double blind_sq, double max_range_sq)
 {
     int point_num = msg->point_num;
     out->clear();
@@ -65,10 +65,14 @@ void livoxAvia2pcl(const livox_ros_driver::CustomMsg::ConstPtr &msg, pcl::PointC
 
     for (uint i = 1; i < point_num; i++)
     {
-        if ((abs(msg->points[i].x - msg->points[i - 1].x) < 1e-8) || (abs(msg->points[i].y - msg->points[i - 1].y) < 1e-8) || (abs(msg->points[i].z - msg->points[i - 1].z) < 1e-8) || (msg->points[i].x * msg->points[i].x + msg->points[i].y * msg->points[i].y < blind) || (msg->points[i].line > 6) || ((msg->points[i].tag & 0x30) != 0x10))
-        {
+        if ((abs(msg->points[i].x - msg->points[i - 1].x) < 1e-8) || (abs(msg->points[i].y - msg->points[i - 1].y) < 1e-8) || (abs(msg->points[i].z - msg->points[i - 1].z) < 1e-8) || (msg->points[i].line > 6) || ((msg->points[i].tag & 0x30) != 0x10))
             continue;
-        }
+        double xy_range = msg->points[i].x * msg->points[i].x + msg->points[i].y * msg->points[i].y;
+        double xyz_range = xy_range + msg->points[i].z * msg->points[i].z;
+
+        if (xy_range < blind_sq || xyz_range > max_range_sq)
+            continue;
+
         valid_num++;
         if (valid_num % filter_num == 0)
         {
